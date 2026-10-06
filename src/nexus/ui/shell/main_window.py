@@ -6,6 +6,7 @@ from ...core.state.models import LeagueState,StateConfidence
 from ..components.base import NexusButton,NexusCard,NexusHeader,NexusStatus
 from ..theme import tokens as T
 from ..theme.qss import build_qss
+from ..champ_select.panel import ChampionSelectPanel
 from .bridge import NexusQtBridge
 class MainWindow(QMainWindow):
     def __init__(self,controller,parent=None):
@@ -39,6 +40,7 @@ class MainWindow(QMainWindow):
         self.auto_toggle=QCheckBox("Enable automation"); self.auto_toggle.toggled.connect(self.controller.set_automation_enabled); action.body.addWidget(self.auto_toggle)
         stop=NexusButton("STOP AUTOMATION","danger"); stop.clicked.connect(lambda:self.controller.emergency_stop("Champ Select stop")); action.body.addWidget(stop)
         row=QHBoxLayout(); row.addWidget(rec,2); row.addWidget(action,1); l.addLayout(row)
+        pool=ChampionSelectPanel(self.controller); pool.manual_select.connect(self.controller.manual_select); self.pool=pool; l.addWidget(pool,2)
         timeline=NexusCard(); timeline.body.addWidget(QLabel("ACTIVITY")); self.events=QListWidget(); timeline.body.addWidget(self.events); l.addWidget(timeline,1)
         return w
     def _automation_page(self):
@@ -72,9 +74,10 @@ class MainWindow(QMainWindow):
         self.auto_state.set_status(str(self.controller.automation.status).replace("_"," ").title())
         self.master.blockSignals(True); self.master.setChecked(self.controller.settings.automation.master_enabled); self.master.blockSignals(False)
         self.auto_toggle.blockSignals(True); self.auto_toggle.setChecked(self.controller.settings.automation.master_enabled); self.auto_toggle.blockSignals(False)
+        self.pool.refresh()
         if hasattr(self.controller.diagnostics,"snapshot"):self.diag.setText(str(self.controller.diagnostics.snapshot()))
     def _on_event(self,ev):
-        if ev.kind.startswith(("state.","automation.")):
+        if ev.kind.startswith(("state.","automation.","lcu.")):
             self.events.insertItem(0,ev.human())
             while self.events.count()>80:self.events.takeItem(self.events.count()-1)
     def closeEvent(self,event):self.bridge.shutdown(); super().closeEvent(event)
