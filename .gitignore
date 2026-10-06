@@ -1,26 +1,5 @@
-# Python
-__pycache__/
-*.py[cod]
-*.egg-info/
-.venv/
-venv/
-
-# Build / tooling
-build/
+(empty)node_modules/
+.next/
 dist/
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.coverage
-htmlcov/
-
-# App data & logs
+build/
 *.log
-nexus_data/
-assets/champions/*.jpg
-
-# Editors / OS
-.idea/
-.vscode/
-.DS_Store
-Thumbs.db

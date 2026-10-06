@@ -1,0 +1,394 @@
+{
+ "version": 1,
+ "source": "seed (RuntimeError)",
+ "champions": [
+  {
+   "id": 4,
+   "key": "4",
+   "name": "Ashe",
+   "alias": "Ashe",
+   "roles": [
+    "ADC"
+   ],
+   "resource": "mana"
+  },
+  {
+   "id": 51,
+   "key": "51",
+   "name": "Caitlyn",
+   "alias": "Caitlyn",
+   "roles": [
+    "ADC"
+   ],
+   "resource": "mana"
+  },
+  {
+   "id": 81,
+   "key": "81",
+   "name": "Ezreal",
+   "alias": "Ezreal",
+   "roles": [
+    "ADC"
+   ],
+   "resource": "mana"
+  },
+  {
+   "id": 222,
+   "key": "222",
+   "name": "Jinx",
+   "alias": "Jinx",
+   "roles": [
+    "ADC"
+   ],
+   "resource": "mana"
+  },
+  {
+   "id": 145,
+   "key": "145",
+   "name": "Kai'Sa",
+   "alias": "KaiSa",
+   "roles": [
+    "ADC"
+   ],
+   "resource": "mana"
+  },
+  {
+   "id": 236,
+   "key": "236",
+   "name": "Lucian",
+   "alias": "Lucian",
+   "roles": [
+    "ADC"
+   ],
+   "resource": "mana"
+  },
+  {
+   "id": 67,
+   "key": "67",
+   "name": "Vayne",
+   "alias": "Vayne",
+   "roles": [
+    "ADC"
+   ],
+   "resource": "mana"
+  },
+  {
+   "id": 498,
+   "key": "498",
+   "name": "Xayah",
+   "alias": "Xayah",
+   "roles": [
+    "ADC"
+   ],
+   "resource": "mana"
+  },
+  {
+   "id": 523,
+   "key": "523",
+   "name": "Aphelios",
+   "alias": "Aphelios",
+   "roles": [
+    "ADC"
+   ],
+   "resource": "mana"
+  },
+  {
+   "id": 21,
+   "key": "21",
+   "name": "Miss Fortune",
+   "alias": "MissFortune",
+   "roles": [
+    "ADC"
+   ],
+   "resource": "mana"
+  },
+  {
+   "id": 103,
+   "key": "103",
+   "name": "Ahri",
+   "alias": "Ahri",
+   "roles": [
+    "MIDDLE"
+   ],
+   "resource": "mana"
+  },
+  {
+   "id": 12,
+   "key": "12",
+   "name": "Annie",
+   "alias": "Annie",
+   "roles": [
+    "MIDDLE"
+   ],
+   "resource": "mana"
+  },
+  {
+   "id": 245,
+   "key": "245",
+   "name": "Ekko",
+   "alias": "Ekko",
+   "roles": [
+    "MIDDLE"
+   ],
+   "resource": "mana"
+  },
+  {
+   "id": 61,
+   "key": "61",
+   "name": "Orianna",
+   "alias": "Orianna",
+   "roles": [
+    "MIDDLE"
+   ],
+   "resource": "mana"
+  },
+  {
+   "id": 134,
+   "key": "134",
+   "name": "Syndra",
+   "alias": "Syndra",
+   "roles": [
+    "MIDDLE"
+   ],
+   "resource": "mana"
+  },
+  {
+   "id": 157,
+   "key": "157",
+   "name": "Yasuo",
+   "alias": "Yasuo",
+   "roles": [
+    "MIDDLE"
+   ],
+   "resource": "mana"
+  },
+  {
+   "id": 238,
+   "key": "238",
+   "name": "Zed",
+   "alias": "Zed",
+   "roles": [
+    "MIDDLE"
+   ],
+   "resource": "energy"
+  },
+  {
+   "id": 29,
+   "key": "29",
+   "name": "Viktor",
+   "alias": "Viktor",
+   "roles": [
+    "MIDDLE"
+   ],
+   "resource": "mana"
+  },
+  {
+   "id": 32,
+   "key": "32",
+   "name": "Amumu",
+   "alias": "Amumu",
+   "roles": [
+    "JUNGLE"
+   ],
+   "resource": "mana"
+  },
+  {
+   "id": 28,
+   "key": "28",
+   "name": "Evelynn",
+   "alias": "Evelynn",
+   "roles": [
+    "JUNGLE"
+   ],
+   "resource": "mana"
+  },
+  {
+   "id": 64,
+   "key": "64",
+   "name": "Lee Sin",
+   "alias": "LeeSin",
+   "roles": [
+    "JUNGLE"
+   ],
+   "resource": "energy"
+  },
+  {
+   "id": 234,
+   "key": "234",
+   "name": "Viego",
+   "alias": "Viego",
+   "roles": [
+    "JUNGLE"
+   ],
+   "resource": "mana"
+  },
+  {
+   "id": 120,
+   "key": "120",
+   "name": "Hecarim",
+   "alias": "Hecarim",
+   "roles": [
+    "JUNGLE"
+   ],
+   "resource": "mana"
+  },
+  {
+   "id": 141,
+   "key": "141",
+   "name": "Kayn",
+   "alias": "Kayn",
+   "roles": [
+    "JUNGLE"
+   ],
+   "resource": "mana"
+  },
+  {
+   "id": 122,
+   "key": "122",
+   "name": "Darius",
+   "alias": "Darius",
+   "roles": [
+    "TOP"
+   ],
+   "resource": "mana"
+  },
+  {
+   "id": 114,
+   "key": "114",
+   "name": "Fiora",
+   "alias": "Fiora",
+   "roles": [
+    "TOP"
+   ],
+   "resource": "mana"
+  },
+  {
+   "id": 86,
+   "key": "86",
+   "name": "Garen",
+   "alias": "Garen",
+   "roles": [
+    "TOP"
+   ],
+   "resource": "mana"
+  },
+  {
+   "id": 875,
+   "key": "875",
+   "name": "Sett",
+   "alias": "Sett",
+   "roles": [
+    "TOP"
+   ],
+   "resource": "mana"
+  },
+  {
+   "id": 164,
+   "key": "164",
+   "name": "Camille",
+   "alias": "Camille",
+   "roles": [
+    "TOP"
+   ],
+   "resource": "mana"
+  },
+  {
+   "id": 82,
+   "key": "82",
+   "name": "Mordekaiser",
+   "alias": "Mordekaiser",
+   "roles": [
+    "TOP"
+   ],
+   "resource": "mana"
+  },
+  {
+   "id": 53,
+   "key": "53",
+   "name": "Blitzcrank",
+   "alias": "Blitzcrank",
+   "roles": [
+    "SUPPORT",
+    "SUPPORT"
+   ],
+   "resource": "mana"
+  },
+  {
+   "id": 117,
+   "key": "117",
+   "name": "Lulu",
+   "alias": "Lulu",
+   "roles": [
+    "SUPPORT",
+    "SUPPORT"
+   ],
+   "resource": "mana"
+  },
+  {
+   "id": 111,
+   "key": "111",
+   "name": "Nautilus",
+   "alias": "Nautilus",
+   "roles": [
+    "SUPPORT",
+    "SUPPORT"
+   ],
+   "resource": "mana"
+  },
+  {
+   "id": 412,
+   "key": "412",
+   "name": "Thresh",
+   "alias": "Thresh",
+   "roles": [
+    "SUPPORT",
+    "SUPPORT"
+   ],
+   "resource": "mana"
+  },
+  {
+   "id": 40,
+   "key": "40",
+   "name": "Janna",
+   "alias": "Janna",
+   "roles": [
+    "SUPPORT",
+    "SUPPORT"
+   ],
+   "resource": "mana"
+  },
+  {
+   "id": 143,
+   "key": "143",
+   "name": "Rakan",
+   "alias": "Rakan",
+   "roles": [
+    "SUPPORT",
+    "SUPPORT"
+   ],
+   "resource": "mana"
+  },
+  {
+   "id": 555,
+   "key": "555",
+   "name": "Pyke",
+   "alias": "Pyke",
+   "roles": [
+    "SUPPORT",
+    "SUPPORT"
+   ],
+   "resource": "mana"
+  },
+  {
+   "id": 43,
+   "key": "43",
+   "name": "Karma",
+   "alias": "Karma",
+   "roles": [
+    "SUPPORT",
+    "SUPPORT"
+   ],
+   "resource": "mana"
+  }
+ ]
+}

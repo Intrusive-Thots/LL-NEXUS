@@ -14,7 +14,17 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
-ASSET_CATALOG = Path(__file__).resolve().parents[2] / "assets" / "champions.json"
+def _find_asset_catalog() -> Path:
+    """Locate assets/champions.json whether running from a checkout or installed."""
+    here = Path(__file__).resolve()
+    for base in (here.parents[4], here.parents[3], here.parents[2]):
+        cand = base / "assets" / "champions.json"
+        if cand.exists():
+            return cand
+    return here.parents[2] / "assets" / "champions.json"
+
+
+ASSET_CATALOG = _find_asset_catalog()
 
 
 @dataclass(frozen=True)
