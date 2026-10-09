@@ -20,6 +20,7 @@ dev = [
     "pytest>=7.4",
     "pytest-asyncio>=0.23",
     "psutil>=5.9",
+    "pyinstaller>=6.0",
 ]
 
 [project.scripts]
@@ -31,7 +32,6 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
-asyncio_mode = "auto"
 markers = [
     "ui: tests that require a Qt application (offscreen)",
 ]

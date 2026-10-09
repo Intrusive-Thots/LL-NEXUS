@@ -1,3 +1,22 @@
 # Python compiled files
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+
+# Environments & IDEs
+.venv/
+venv/
+ENV/
+.idea/
+.vscode/
+
+# Local runtime data & caches
+nexus_data/
+.pytest_cache/
+.coverage
+
+# Build & packaging artifacts
+build/
+dist/
+*.egg-info/
