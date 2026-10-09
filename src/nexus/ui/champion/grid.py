@@ -13,11 +13,11 @@ from __future__ import annotations
 import math
 from typing import Callable, Iterable, Optional
 
-from PySide6.QtCore import QRect, QSize, Qt, Signal
+from PySide6.QtCore import QPoint, QRect, QSize, Qt, Signal
 from PySide6.QtGui import QKeySequence
 from PySide6.QtWidgets import (
-    QFrame, QGraphicsDropShadowEffect, QHBoxLayout, QLabel, QScrollArea,
-    QSizePolicy, QVBoxLayout, QWidget,
+    QFrame, QGraphicsDropShadowEffect, QHBoxLayout, QLabel, QLayout,
+    QScrollArea, QSizePolicy, QVBoxLayout, QWidget,
 )
 
 from ...core.champions.models import Champion
@@ -28,7 +28,7 @@ from .images import ChampionImageService, placeholder_pixmap
 
 class NexusChampionTile(QFrame):
     clicked_ = Signal(object)          # Champion
-    context_menu = Signal(object, QPoint := __import__("PySide6.QtCore", fromlist=["QPoint"]).QPoint)
+    context_menu = Signal(object, QPoint)
 
     def __init__(self, champion: Champion, tile_w: int, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
@@ -118,24 +118,33 @@ class NexusChampionTile(QFrame):
 
 
 # ---------------------------------------------------------------- flow layout
-class _FlowLayout(QWidget):
-    """Minimal flow layout used by the grid (wraps tiles to available width)."""
+class _FlowLayout(QLayout):
+    """Minimal flow layout used by the grid (wraps tiles to available width).
+
+    Subclasses QLayout (not QWidget) so it can be installed via
+    `widget.setLayout(...)`; tiles are positioned absolutely inside the host
+    container, which is resized via `heightForWidth`.
+    """
 
     def __init__(self, host: "NexusChampionGrid") -> None:
-        super().__init__(host)
-        self.host = host
+        super().__init__()
+        self.host = host          # NexusChampionGrid (QScrollArea)
+        self.container: Optional[QWidget] = None   # set by the grid after creation
         self.items: list[QWidget] = []
         self.setContentsMargins(0, 0, 0, 0)
 
     def add_widget(self, w: QWidget) -> None:
         self.items.append(w)
+        if self.container is not None:
+            w.setParent(self.container)
+            w.show()
 
     def clear(self) -> None:
         for w in self.items:
             w.setParent(None); w.deleteLater()
         self.items.clear()
 
-    def count(self) -> int:
+    def count(self) -> int:  # noqa: N802 — Qt API
         return len(self.items)
 
     def widget_at(self, i: int) -> QWidget:
@@ -144,8 +153,14 @@ class _FlowLayout(QWidget):
     def itemAt(self, i: int):  # noqa: N802 — Qt API
         return None
 
+    def takeAt(self, i: int):  # noqa: N802 — Qt API
+        return None
+
+    def columns_for(self, width: int) -> int:
+        return max(1, width // (self.host.tile_w + self.host.gap))
+
     def heightForWidth(self, width: int) -> int:  # noqa: N802
-        cols = max(1, width // (self.host.tile_w + self.host.gap))
+        cols = self.columns_for(width)
         rows = math.ceil(len(self.items) / cols) if self.items else 0
         return rows * (self.host.tile_h + self.host.gap)
 
@@ -156,25 +171,25 @@ class _FlowLayout(QWidget):
         return self.minimumSize()
 
     def minimumSize(self) -> QSize:  # noqa: N802
-        w = self.host.width()
+        w = self.host.viewport().width() or self.host.width()
         h = self.heightForWidth(w) if w else 0
         return QSize(w, h)
 
+    def setGeometry(self, rect: QRect) -> None:  # noqa: N802 — Qt API
+        super().setGeometry(rect)
+        if getattr(self.host, "_ready", False):
+            self.doLayout(rect)
+
     def doLayout(self, rect: QRect) -> None:  # noqa: N802
-        cols = max(1, rect.width() // (self.host.tile_w + self.host.gap))
+        cols = self.columns_for(rect.width())
         self.host.columns = cols
         x = y = 0
         for it in self.items:
-            it.setGeometry(rect.x() + x, rect.y() + y,
-                           self.host.tile_w, self.host.tile_h)
+            it.move(x, y)
             x += self.host.tile_w + self.host.gap
             if x + self.host.tile_w > rect.width():
                 x = 0
                 y += self.host.tile_h + self.host.gap
-
-    def resizeEvent(self, e) -> None:
-        self.doLayout(QRect(0, 0, self.width(), self.height()))
-        self.host._on_layout_changed()
 
 
 class NexusChampionGrid(QScrollArea):
@@ -198,10 +213,13 @@ class NexusChampionGrid(QScrollArea):
         self._selected_key: Optional[str] = None
         self._svc = ChampionImageService.instance()
         container = QWidget()
-        self.flow = _FlowLayout(container)
+        self.container = container
+        self.flow = _FlowLayout(self)
+        self.flow.container = container
         container.setLayout(self.flow)
         self.setWidget(container)
         self.setAccessibleName("Champion grid")
+        self._ready = True
 
     # ------------------------------------------------------------------- api
     def populate(self, champions: Iterable[Champion], ranks: Optional[dict[str, int]] = None,
@@ -221,9 +239,7 @@ class NexusChampionGrid(QScrollArea):
             self._tiles[c.key] = tile
             if keep_selection and c.key == self._selected_key:
                 tile.set_selected(True)
-        self.flow.doLayout(QRect(0, 0, max(self.viewport().width(), self.tile_w),
-                                 self.flow.heightForWidth(self.viewport().width())))
-        self.flow.resize(self.viewport().size())
+        self._relayout()
         self._prefetch_visible()
 
     def set_selection(self, key: Optional[str]) -> None:
@@ -293,9 +309,14 @@ class NexusChampionGrid(QScrollArea):
             return
         super().keyPressEvent(e)
 
+    def _relayout(self) -> None:
+        w = max(self.viewport().width(), self.tile_w)
+        h = self.flow.heightForWidth(w)
+        self.container.setMinimumSize(w, h)
+        self.container.resize(w, max(h, self.viewport().height()))
+        self.flow.doLayout(QRect(0, 0, w, h))
+
     def resizeEvent(self, e) -> None:
         super().resizeEvent(e)
-        w = self.viewport().width()
-        self.flow.doLayout(QRect(0, 0, w, self.flow.heightForWidth(w)))
-        self.flow.resize(self.viewport().size())
+        self._relayout()
         self._prefetch_visible()

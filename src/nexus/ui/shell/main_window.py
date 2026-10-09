@@ -4,16 +4,26 @@ from PySide6.QtWidgets import QCheckBox,QFrame,QHBoxLayout,QLabel,QListWidget,QM
 from ...core.automation.config import BanMode
 from ...core.state.models import LeagueState,StateConfidence
 from ..components.base import NexusButton,NexusCard,NexusHeader,NexusStatus
+from ..components.toast import NexusToast
 from ..theme import tokens as T
 from ..theme.qss import build_qss
 from ..champ_select.panel import ChampionSelectPanel
+from ..pages.profile_page import ProfilePage
+from ..pages.settings_page import SettingsPage
+from ..compact.overlay import CompactOverlay
 from .bridge import NexusQtBridge
 class MainWindow(QMainWindow):
     def __init__(self,controller,parent=None):
         super().__init__(parent); self.controller=controller; self.setWindowTitle("LeagueLoop Nexus")
-        self.setMinimumSize(*T.MAIN_WINDOW_MIN); self.resize(1180,760); self.setStyleSheet(build_qss("dark"))
-        self.bridge=NexusQtBridge(controller.bus,self); self.bridge.event.connect(self._on_event); self._build(); self._refresh()
+        self.setMinimumSize(*T.MAIN_WINDOW_MIN); self.resize(1180,760)
+        self.setStyleSheet(build_qss(getattr(controller.settings.appearance,"theme","dark")))
+        self.bridge=NexusQtBridge(controller.bus,self); self.bridge.event.connect(self._on_event)
+        self._toasts=[]
+        # compact overlay (spec §26) — hidden until toggled; built before first refresh
+        self.compact=CompactOverlay(controller); self.compact.expand_requested=self._expand_from_compact
+        self._build(); self._refresh()
         self.timer=QTimer(self); self.timer.timeout.connect(self._refresh); self.timer.start(500)
+        if getattr(controller.settings.general,"start_in_compact_mode",False): self.compact.show()
     def _build(self):
         root=QWidget(); outer=QHBoxLayout(root); outer.setContentsMargins(T.SP_4,T.SP_4,T.SP_4,T.SP_4); outer.setSpacing(T.SP_3)
         nav=QFrame(); nav.setObjectName("NexusNav"); nv=QVBoxLayout(nav); nv.setContentsMargins(T.SP_3,T.SP_3,T.SP_3,T.SP_3)
@@ -21,7 +31,9 @@ class MainWindow(QMainWindow):
         self.pages={}; self.buttons=[]
         for name in ("Champ Select","Automation","Profile","Settings","Developer"):
             b=NexusButton(name,variant="ghost"); b.clicked.connect(lambda _,n=name:self._show(n)); nv.addWidget(b); self.buttons.append(b)
-        nv.addStretch(); self.nav_status=NexusStatus("Disconnected"); nv.addWidget(self.nav_status)
+        nv.addStretch()
+        compact_btn=NexusButton("COMPACT MODE","ghost"); compact_btn.clicked.connect(self._toggle_compact); nv.addWidget(compact_btn)
+        self.nav_status=NexusStatus("Disconnected"); nv.addWidget(self.nav_status)
         stop=NexusButton("EMERGENCY STOP","danger","Ctrl+Shift+Esc"); stop.clicked.connect(lambda:self.controller.emergency_stop()); nv.addWidget(stop)
         nav.setFixedWidth(190); outer.addWidget(nav)
         self.stack=QStackedWidget()
@@ -52,13 +64,19 @@ class MainWindow(QMainWindow):
         c.body.addWidget(QLabel("Consequential actions require confirmed authoritative state and post-action verification."))
         l.addWidget(c); l.addStretch(); return w
     def _profile_page(self):
-        w=QWidget(); l=QVBoxLayout(w); l.addWidget(NexusHeader("Profile","Champion priorities and session context")); c=NexusCard()
-        c.body.addWidget(QLabel(f"{len(self.controller.catalog.all)} champions in catalog")); c.body.addWidget(QLabel(f"{len(self.controller.priorities.to_list())} configured priorities")); l.addWidget(c); l.addStretch(); return w
+        page=ProfilePage(self.controller); self.profile_page=page; return page
     def _settings_page(self):
-        w=QWidget(); l=QVBoxLayout(w); l.addWidget(NexusHeader("Settings","General · Appearance · Automation · Champion Selection · Notifications · Hotkeys · Accounts · Advanced"))
-        for name in ("General","Appearance","Automation","Champion Selection","Notifications","Hotkeys","Accounts","Advanced"):
-            b=NexusButton(name,variant="ghost"); b.setEnabled(name=="Automation"); l.addWidget(b)
-        l.addStretch(); return w
+        page=SettingsPage(self.controller); self.settings_page=page; return page
+    def _toggle_compact(self):
+        if self.compact.isVisible(): self.compact.hide()
+        else: self.compact.refresh(); self.compact.show()
+    def _expand_from_compact(self):
+        rec=self.controller.automation.pending_recommendation
+        snap=self.controller.manager.snapshot()
+        from ...core.state.models import LeagueState
+        if rec and rec.winner and snap.state in (LeagueState.CHAMP_SELECT,LeagueState.PICK_PHASE,LeagueState.BAN_PHASE):
+            self.controller.manual_select(rec.winner.champion.name)
+        self.compact.hide(); self.activateWindow(); self.raise_(); self._show("Champ Select")
     def _developer_page(self):
         w=QWidget(); l=QVBoxLayout(w); l.addWidget(NexusHeader("Developer","Diagnostics and authoritative state")); self.diag=QLabel(); self.diag.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse); l.addWidget(self.diag); l.addStretch(); return w
     def _manual_select(self):
@@ -75,9 +93,29 @@ class MainWindow(QMainWindow):
         self.master.blockSignals(True); self.master.setChecked(self.controller.settings.automation.master_enabled); self.master.blockSignals(False)
         self.auto_toggle.blockSignals(True); self.auto_toggle.setChecked(self.controller.settings.automation.master_enabled); self.auto_toggle.blockSignals(False)
         self.pool.refresh()
+        if hasattr(self,"profile_page"):self.profile_page.refresh()
+        if self.compact.isVisible():self.compact.refresh()
         if hasattr(self.controller.diagnostics,"snapshot"):self.diag.setText(str(self.controller.diagnostics.snapshot()))
     def _on_event(self,ev):
-        if ev.kind.startswith(("state.","automation.","lcu.")):
+        if ev.kind=="notify":
+            p=ev.payload
+            if not self.controller.notifications.enabled:return
+            level=str(p.get("level","info"))
+            if level=="critical" and not self.controller.settings.notifications.toast_errors:return
+            toast=NexusToast(str(p.get("title","")),str(p.get("body","")),level=level,
+                             duration_ms=int(p.get("duration_ms",4000)),parent=self)
+            self._toasts.append(toast); toast.dismissed.connect(lambda t=toast:self._toasts.remove(t))
+            self._layout_toasts(); toast.show()
+        if ev.kind.startswith(("state.","automation.","lcu.","recommendation.","simulation.","notify")):
             self.events.insertItem(0,ev.human())
             while self.events.count()>80:self.events.takeItem(self.events.count()-1)
+    def _layout_toasts(self):
+        # bottom-right stack of transient toasts, reflowed on resize/dismiss
+        if not self._toasts:return
+        margin=T.SP_4; x=self.width()-margin; y=self.height()-margin
+        for t in self._toasts[-5:]:
+            t.adjustSize(); h=t.sizeHint().height(); w=t.maximumWidth()+2*T.SP_1
+            t.move(max(margin,x-w),y-h); y-=h+T.SP_2
+    def resizeEvent(self,e):
+        super().resizeEvent(e); self._layout_toasts()
     def closeEvent(self,event):self.bridge.shutdown(); super().closeEvent(event)

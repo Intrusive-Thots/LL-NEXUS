@@ -1,5 +1,3 @@
-(empty)node_modules/
-.next/
-dist/
-build/
-*.log
+# Python compiled files
+__pycache__/
+*.pyc

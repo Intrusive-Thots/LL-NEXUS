@@ -27,14 +27,12 @@ class NexusPriorityList(QListWidget):
         self.setObjectName("PriorityList")
         self.priorities = priorities
         self.catalog = catalog
-        self.setDragDropMode(QAbstractItemView_DragDrop := __import__(
-            "PySide6.QtWidgets", fromlist=["QAbstractItemView"]).QAbstractItemView.DragDropMode.InternalMove)
+        from PySide6.QtWidgets import QAbstractItemView
+        self.setDragDropMode(QAbstractItemView.DragDropMode.InternalMove)
         self.setDefaultDropAction(Qt.DropAction.MoveAction)
-        self.setSelectionMode(QAbstractItemView_Selection := __import__(
-            "PySide6.QtWidgets", fromlist=["QAbstractItemView"]).QAbstractItemView.SelectionMode.SingleSelection)
+        self.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.setAccessibleName("Champion priority list")
         self.setToolTip("Drag to reorder • Alt+↑/↓ keyboard reorder • right-click for options")
-        self.contextMenuEvent_ = self._menu
         self.model().rowsMoved.connect(lambda *a: self._commit_reorder())
         self.reload()
 
@@ -42,8 +40,7 @@ class NexusPriorityList(QListWidget):
     def reload(self) -> None:
         self.clear()
         for pref in self.priorities.ranked():
-            champ = self.catalog.by_key(pref.key_or_self()) if hasattr(pref, "key_or_self") \
-                else self.catalog.by_key(pref.champion_key)
+            champ = self.catalog.by_key(pref.champion_key)
             name = champ.name if champ else pref.champion_key
             flags = []
             if pref.disabled:
@@ -55,7 +52,6 @@ class NexusPriorityList(QListWidget):
             label = f"#{pref.priority:<2} {name}"
             if flags:
                 label += "   " + "  ".join(flags)
-            item = QLabel(label)  # placeholder replaced below
             from PySide6.QtWidgets import QListWidgetItem
             it = QListWidgetItem(label)
             it.setData(Qt.ItemDataRole.UserRole, pref.champion_key)

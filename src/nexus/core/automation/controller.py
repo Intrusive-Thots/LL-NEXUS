@@ -199,8 +199,23 @@ class AutomationController:
     def _refresh_recommendation(self, snap: LeagueSnapshot) -> Recommendation:
         unavailable = self._compute_unavailable(snap)
         rec = self._engine.recommend(snap, unavailable_keys=unavailable)
+        changed = False
         with self._lock:
+            prev_key = (self._pending_recommendation.winner.champion.key
+                        if self._pending_recommendation and self._pending_recommendation.winner
+                        else None)
+            new_key = rec.winner.champion.key if rec.winner else None
+            changed = new_key != prev_key
             self._pending_recommendation = rec
+        if changed and rec.winner:
+            # Session history + UI timeline consume this event (§11/§16).
+            self._bus.publish("recommendation.made", source="automation",
+                              champion=rec.winner.champion.name,
+                              champion_key=rec.winner.champion.key,
+                              score=round(rec.winner.score, 2),
+                              reasons=list(rec.winner.reasons),
+                              alternates=[c.champion.name for c in rec.alternates],
+                              role=rec.role.value)
         return rec
 
     def _compute_unavailable(self, snap: LeagueSnapshot) -> set[str]:

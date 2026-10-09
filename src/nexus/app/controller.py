@@ -46,8 +46,7 @@ class AppController:
         catalog_path = root / "assets" / "champions.json"
         self.catalog: ChampionCatalog = (ChampionCatalog.load(catalog_path)
                                          if catalog_path.exists() else None)
-        self.priorities = PriorityList.from_list(self.settings_store.priorities) \
-            if hasattr(self.settings_store, "priorities") else PriorityList()
+        self.priorities = self.settings_store.priorities
 
         self.engine = RecommendationEngine(self.catalog, self.priorities) \
             if self.catalog else None
@@ -152,14 +151,11 @@ class AppController:
 
     # ---------------------------------------------------------- persistence
     def save_priorities(self) -> None:
-        self.settings_store.save_priorities_rows(self.priorities.to_list()) \
-            if hasattr(self.settings_store, "save_priorities_rows") else None
+        self.settings_store.priorities = self.priorities
+        self.settings_store.save_priorities()
 
     def _save_preferences(self) -> None:
         try:
-            rows = self.priorities.to_list()
-            if hasattr(self.settings_store, "priorities"):
-                self.settings_store.priorities = rows
-            self.settings_store.save_priorities()
+            self.save_priorities()
         except Exception:
             pass
