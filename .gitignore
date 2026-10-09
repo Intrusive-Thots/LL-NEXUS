@@ -1,3 +1,30 @@
-# Python compiled files
+# Bytecode & compiled files
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Local runtime & data
+nexus_data/
+*.db
+*.sqlite3
+
+# Packaging & builds
+dist/
+build/
+*.egg-info/
+
+# Testing & coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE & OS
+.vscode/
+.idea/
+*.swp
+Thumbs.db

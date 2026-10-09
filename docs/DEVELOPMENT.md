@@ -12,3 +12,7 @@ league-loop-nexus
 Without League Client:
 $env:NEXUS_SIMULATE="1"
 league-loop-nexus
+
+Packaging for Windows:
+python scripts/build_windows.py
+See docs/PACKAGING.md for details.

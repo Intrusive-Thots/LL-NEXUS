@@ -30,9 +30,15 @@ GAMEFLOW_MAP: dict[str, LeagueState] = {
     "ChampSelect": LeagueState.CHAMP_SELECT,
     "BanBuddy": LeagueState.BAN_PHASE,
     "PickScreen": LeagueState.PICK_PHASE,
+    "GameStart": LeagueState.LOADING,
     "Preload": LeagueState.LOADING,
+    "Reconnect": LeagueState.LOADING,
+    "InProgress": LeagueState.IN_GAME,
     "Play": LeagueState.IN_GAME,
+    "WatchInProgress": LeagueState.IN_GAME,
+    "EndOfGame": LeagueState.POST_GAME,
     "PostGame": LeagueState.POST_GAME,
+    "TerminatedInError": LeagueState.ERROR,
 }
 
 
