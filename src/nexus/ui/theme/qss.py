@@ -233,4 +233,20 @@ QFrame#NexusToast[level="success"] {{ border-color: {p.ok}; }}
 
 /* modal scrim */
 QFrame#ModalScrim {{ background: rgba(4,6,9,190); }}
+
+/* ------------------------------------------------------- shell (main window) */
+QFrame#NexusNav {{
+    background: {p.bg_surface}; border: {s(BORDER_W)}px solid {p.border_subtle};
+    border-radius: {s(RADIUS_LG)}px;
+}}
+QLabel#Brand {{
+    color: {p.accent_gold}; font-size: {s(TYPOGRAPHY.size_subhead)}px;
+    font-weight: {TYPOGRAPHY.weight_bold}; letter-spacing: 2px;
+}}
+QPushButton#SectionHeader {{ color: {p.text_secondary}; }}
 """
+
+
+def build_qss(theme: str = "dark", ui_scale: float = 1.0) -> str:
+    """Compatibility alias — the shell imports `build_qss`."""
+    return build_stylesheet(theme, ui_scale)

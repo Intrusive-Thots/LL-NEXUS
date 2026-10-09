@@ -77,7 +77,7 @@ class MainWindow(QMainWindow):
         self.pool.refresh()
         if hasattr(self.controller.diagnostics,"snapshot"):self.diag.setText(str(self.controller.diagnostics.snapshot()))
     def _on_event(self,ev):
-        if ev.kind.startswith(("state.","automation.","lcu.")):
+        if ev.kind.startswith(("state.","automation.","lcu.","recommendation.","simulation.","notify")):
             self.events.insertItem(0,ev.human())
             while self.events.count()>80:self.events.takeItem(self.events.count()-1)
     def closeEvent(self,event):self.bridge.shutdown(); super().closeEvent(event)
