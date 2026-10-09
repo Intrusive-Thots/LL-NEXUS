@@ -122,6 +122,8 @@ class AppController:
             return
         champ = self.catalog.by_name(champion_name)
         if champ:
+            if self._port and self._port.is_connected():
+                self._port.select_champion(champ.id)
             self.automation.manual_override(champ.name, champ.id)
 
     def set_automation_enabled(self, enabled: bool) -> None:
