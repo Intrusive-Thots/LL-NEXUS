@@ -83,3 +83,21 @@ def test_simulation_app_controller_lifecycle(tmp_path):
     finally:
         controller.shutdown()
 
+
+def test_manual_select_executes_action_and_registers_override(tmp_path):
+    from nexus.app.controller import AppController
+    controller = AppController(data_dir=tmp_path, simulate=True)
+    controller.start()
+    try:
+        controller.simulator.feed("CONNECT")
+        controller.simulator.feed("LOBBY")
+        controller.simulator.feed("QUEUE")
+        controller.simulator.feed("CHAMP_SELECT")
+        controller.simulator.feed("PICK_PHASE", action_is_pick=True)
+
+        champ = controller.catalog.all[0]
+        controller.manual_select(champ.name)
+
+        assert any(f"select:{champ.key}" in action for action in controller.sim_port.action_log)
+    finally:
+        controller.shutdown()
