@@ -185,8 +185,7 @@ class _FlowLayout(QLayout):
         self.host.columns = cols
         x = y = 0
         for it in self.items:
-            it.setGeometry(rect.x() + x, rect.y() + y,
-                           self.host.tile_w, self.host.tile_h)
+            it.move(x, y)
             x += self.host.tile_w + self.host.gap
             if x + self.host.tile_w > rect.width():
                 x = 0
@@ -240,12 +239,7 @@ class NexusChampionGrid(QScrollArea):
             self._tiles[c.key] = tile
             if keep_selection and c.key == self._selected_key:
                 tile.set_selected(True)
-        self.flow.doLayout(QRect(0, 0, max(self.viewport().width(), self.tile_w),
-                                 self.flow.heightForWidth(self.viewport().width())))
-        # size the scroll content so vertical scrolling covers all rows
-        self.container.setMinimumSize(
-            self.viewport().width(),
-            self.flow.heightForWidth(self.viewport().width()))
+        self._relayout()
         self._prefetch_visible()
 
     def set_selection(self, key: Optional[str]) -> None:
@@ -315,9 +309,14 @@ class NexusChampionGrid(QScrollArea):
             return
         super().keyPressEvent(e)
 
+    def _relayout(self) -> None:
+        w = max(self.viewport().width(), self.tile_w)
+        h = self.flow.heightForWidth(w)
+        self.container.setMinimumSize(w, h)
+        self.container.resize(w, max(h, self.viewport().height()))
+        self.flow.doLayout(QRect(0, 0, w, h))
+
     def resizeEvent(self, e) -> None:
         super().resizeEvent(e)
-        w = self.viewport().width()
-        self.flow.doLayout(QRect(0, 0, w, self.flow.heightForWidth(w)))
-        self.flow.resize(self.viewport().size())
+        self._relayout()
         self._prefetch_visible()
