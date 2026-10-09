@@ -1,3 +1,5 @@
 # Python compiled files
 __pycache__/
 *.pyc
+*.egg-info/
+nexus_data/*.db
