@@ -1,7 +1,14 @@
 """Unit tests for packaging build scripts."""
 
+import sys
+from pathlib import Path
 from unittest.mock import patch
 import pytest
+
+# Ensure repo root is on sys.path so scripts directory can be imported in pytest
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from scripts.build_windows import check_pyinstaller, build
 
