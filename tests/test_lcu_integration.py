@@ -78,3 +78,57 @@ def test_lcu_event_service_apply_gameflow_phase():
     # Unknown phase marks state as stale
     service.apply_gameflow_phase("SomeUnknownPhase")
     assert mgr.confidence == StateConfidence.STALE
+
+
+def test_lcu_event_service_apply_champ_select_ban_formats():
+    bus = EventBus()
+    mgr = LeagueStateManager(bus)
+    client = MagicMock()
+    service = LCUEventService(client, mgr, bus)
+
+    mgr.transition(LeagueState.CONNECTED, StateConfidence.CONFIRMED, source="test")
+    mgr.transition(LeagueState.LOBBY, StateConfidence.CONFIRMED, source="test")
+    mgr.transition(LeagueState.QUEUE, StateConfidence.CONFIRMED, source="test")
+    mgr.transition(LeagueState.SEARCHING, StateConfidence.CONFIRMED, source="test")
+    mgr.transition(LeagueState.CHAMP_SELECT, StateConfidence.CONFIRMED, source="test")
+
+    session_dict_bans = {
+        "timer": {"gameDraftTime": 25.0, "totalTime": 30.0},
+        "bans": {"myTeamBans": [10, 20], "theirTeamBans": [30, 40]},
+        "myTeam": [
+            {"championId": 100, "role": "MIDDLE", "actions": [{"completed": False, "isPick": True, "championId": 100}]}
+        ],
+        "theirTeam": [
+            {"championId": 200}
+        ],
+    }
+
+    service.apply_champ_select(session_dict_bans)
+    snap = mgr.snapshot()
+    assert snap.banned_ids == {10, 20, 30, 40}
+    assert snap.ally_pick_ids == {100}
+    assert snap.enemy_pick_ids == {200}
+    assert snap.role.value == "MIDDLE"
+    assert snap.timer_seconds == 25.0
+
+    session_list_dict_bans = {
+        "timer": {"duration": 15.0},
+        "bans": [{"championId": 50}, {"championId": 60}],
+        "myTeam": [],
+        "theirTeam": [],
+    }
+
+    service.apply_champ_select(session_list_dict_bans)
+    snap = mgr.snapshot()
+    assert snap.banned_ids == {50, 60}
+    assert snap.timer_seconds == 15.0
+
+    session_list_int_bans = {
+        "bans": [70, 80],
+        "myTeam": [],
+        "theirTeam": [],
+    }
+
+    service.apply_champ_select(session_list_int_bans)
+    snap = mgr.snapshot()
+    assert snap.banned_ids == {70, 80}
