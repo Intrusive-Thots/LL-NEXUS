@@ -17,6 +17,7 @@ nexus_data/
 dist/
 build/
 *.egg-info/
+*.spec
 
 # Testing & coverage
 .pytest_cache/

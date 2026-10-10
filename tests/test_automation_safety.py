@@ -154,3 +154,30 @@ def test_verification_mismatch_refuses_blind_repetition():
     assert not ok
     assert d.result == "FAILED"
     assert "verification mismatch" in d.detail
+
+
+def test_recommendation_generated_when_automation_disabled():
+    bus = EventBus()
+    manager = LeagueStateManager(bus)
+    port = DummyPort()
+    catalog = ChampionCatalog([Champion(1, "Ahri", "Ahri", "Ahri", ("MIDDLE",))])
+    priorities = PriorityList()
+    priorities.set_priority("Ahri", 1)
+    engine = RecommendationEngine(catalog, priorities)
+    recorder = SessionRecorder(bus)
+    cfg = AutomationConfig(master_enabled=False)
+
+    controller = AutomationController(
+        manager, bus, port, engine, recorder, config=cfg
+    )
+
+    manager.transition(LeagueState.CONNECTED, StateConfidence.CONFIRMED)
+    manager.transition(LeagueState.LOBBY, StateConfidence.CONFIRMED)
+    manager.transition(LeagueState.QUEUE, StateConfidence.CONFIRMED)
+    manager.transition(LeagueState.CHAMP_SELECT, StateConfidence.CONFIRMED)
+    manager.update_fields(role=Role.MIDDLE)
+
+    controller.evaluate_once()
+    assert controller.status == AutomationStatus.STOPPED
+    assert controller.pending_recommendation is not None
+    assert controller.pending_recommendation.winner.champion.name == "Ahri"

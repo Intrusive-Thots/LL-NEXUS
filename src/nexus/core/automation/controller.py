@@ -157,6 +157,12 @@ class AutomationController:
     def evaluate_once(self) -> None:
         """One evaluation pass over authoritative state. Idempotent per window."""
         snap = self._manager.snapshot()
+
+        # Always update recommendations during Champ Select phases for UI display
+        if snap.state in (LeagueState.CHAMP_SELECT, LeagueState.BAN_PHASE,
+                          LeagueState.PICK_PHASE):
+            self._refresh_recommendation(snap)
+
         with self._lock:
             if self.kill_switch.tripped:
                 self._status = AutomationStatus.STOPPED
@@ -174,7 +180,6 @@ class AutomationController:
 
         if snap.state in (LeagueState.CHAMP_SELECT, LeagueState.BAN_PHASE,
                           LeagueState.PICK_PHASE):
-            self._refresh_recommendation(snap)
             self._handle_champ_select(snap)
         elif snap.state is LeagueState.QUEUE:
             self._handle_ready(snap)
