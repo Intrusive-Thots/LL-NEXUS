@@ -4,6 +4,7 @@ Produces a standalone Windows desktop executable.
 Usage:
     python scripts/build_windows.py
 """
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -22,7 +23,7 @@ def build():
         "--clean",
         "--name=league-loop-nexus",
         "--windowed",
-        f"--add-data={assets_dir};assets",
+        f"--add-data={assets_dir}{os.pathsep}assets",
         f"--paths={ROOT / 'src'}",
         str(entry_point),
     ]
