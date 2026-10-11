@@ -58,3 +58,46 @@ def test_compact_overlay(qapp):
 
     controller.shutdown()
     overlay.close()
+
+
+def test_end_to_end_simulation_ui_workflow(qapp):
+    controller = AppController(simulate=True)
+    controller.start()
+
+    window = MainWindow(controller)
+    window.show()
+
+    # Feed simulation steps to reach Pick Phase with role
+    window._sim_feed("CONNECT")
+    window._sim_feed("LOBBY")
+    window._sim_feed("QUEUE")
+    window._sim_feed("CHAMP_SELECT", queue_type="Ranked Solo/Duo")
+    window._sim_feed("ROLE_DETECTED", role="ADC")
+    window._sim_feed("PICK_PHASE", timer_seconds=30.0, timer_total_seconds=30.0, action_is_pick=True)
+
+    # Evaluate automation & refresh UI
+    controller.automation.evaluate_once()
+    window._refresh()
+
+    assert "Pick Phase" in window.phase.text()
+    rec = controller.automation.pending_recommendation
+    assert rec is not None
+    assert rec.winner is not None
+    assert window.rec_title.text() == rec.winner.champion.name
+
+    # Exercise manual selection override
+    window._manual_select()
+
+    # Compact overlay toggle and expand
+    window._toggle_compact()
+    assert window.compact.isVisible()
+    window._expand_from_compact()
+    assert not window.compact.isVisible()
+
+    # Emergency stop safety action from UI
+    controller.emergency_stop("UI test stop")
+    assert controller.kill_switch.tripped
+    assert controller.automation.status == "STOPPED"
+
+    controller.shutdown()
+    window.close()
