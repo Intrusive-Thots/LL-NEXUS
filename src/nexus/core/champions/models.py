@@ -9,15 +9,21 @@ from __future__ import annotations
 
 import json
 import re
+import sys
 from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
 def _find_asset_catalog() -> Path:
-    """Locate assets/champions.json whether running from a checkout or installed."""
+    """Locate assets/champions.json whether running from a checkout or installed/frozen."""
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        cand = Path(sys._MEIPASS) / "assets" / "champions.json"
+        if cand.exists():
+            return cand
+
     here = Path(__file__).resolve()
-    for base in (here.parents[4], here.parents[3], here.parents[2]):
+    for base in (here.parents[4], here.parents[3], here.parents[2], here.parents[1]):
         cand = base / "assets" / "champions.json"
         if cand.exists():
             return cand

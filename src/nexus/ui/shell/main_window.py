@@ -294,9 +294,9 @@ class MainWindow(QMainWindow):
         if self.controller.simulator:
             self.controller.simulator.reset()
 
-    def _sim_feed(self, verb: str):
+    def _sim_feed(self, verb: str, **kwargs):
         if self.controller.simulator:
-            self.controller.simulator.feed(verb)
+            self.controller.simulator.feed(verb, **kwargs)
 
     def _manual_select(self):
         rec = self.controller.automation.pending_recommendation

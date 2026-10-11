@@ -7,13 +7,14 @@ compact toggle). Pages never reach into services directly; they ask here.
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 from typing import Optional
 
 from ..core.automation.config import AutomationConfig
 from ..core.automation.controller import AutomationController
 from ..core.automation.kill_switch import GlobalKillSwitch
-from ..core.champions.models import ChampionCatalog, default_catalog
+from ..core.champions.models import ChampionCatalog, default_catalog, ASSET_CATALOG
 from ..core.champions.priority import PriorityList
 from ..core.events.bus import EventBus
 from ..core.preferences.settings import Settings, SettingsStore
@@ -32,8 +33,16 @@ class AppController:
     def __init__(self, data_dir: Optional[Path] = None,
                  simulate: bool = False) -> None:
         self.simulate = simulate or os.environ.get("NEXUS_SIMULATE") == "1"
+        is_frozen = getattr(sys, "frozen", False)
         root = Path(__file__).resolve().parents[3]      # repo root in a checkout
-        self.data_dir = data_dir or (root / "nexus_data")
+
+        if data_dir is not None:
+            self.data_dir = data_dir
+        elif is_frozen:
+            local_appdata = os.environ.get("LOCALAPPDATA") or str(Path.home() / ".local" / "share")
+            self.data_dir = Path(local_appdata) / "LeagueLoopNexus"
+        else:
+            self.data_dir = root / "nexus_data"
         self.data_dir.mkdir(parents=True, exist_ok=True)
 
         # ------------------------------------------------- core (no Qt deps)
@@ -43,7 +52,7 @@ class AppController:
         self.settings_store.load()
         self.settings: Settings = self.settings_store.settings
 
-        catalog_path = root / "assets" / "champions.json"
+        catalog_path = ASSET_CATALOG if ASSET_CATALOG.exists() else (root / "assets" / "champions.json")
         self.catalog: ChampionCatalog = (ChampionCatalog.load(catalog_path)
                                          if catalog_path.exists() else None)
         self.priorities = self.settings_store.priorities
@@ -122,6 +131,11 @@ class AppController:
             return
         champ = self.catalog.by_name(champion_name)
         if champ:
+            if self._port is not None:
+                try:
+                    self._port.select_champion(champ.id)
+                except Exception as exc:
+                    self.manager.last_error = f"Manual select failed: {exc}"
             self.automation.manual_override(champ.name, champ.id)
 
     def set_automation_enabled(self, enabled: bool) -> None:

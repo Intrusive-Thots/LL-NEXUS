@@ -17,11 +17,13 @@ nexus_data/
 dist/
 build/
 *.egg-info/
+*.spec
 
 # Testing & coverage
 .pytest_cache/
 .coverage
 htmlcov/
+*.log
 
 # IDE & OS
 .vscode/
