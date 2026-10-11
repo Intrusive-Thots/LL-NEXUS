@@ -80,6 +80,12 @@ def test_simulation_app_controller_lifecycle(tmp_path):
         assert rec is not None
         assert rec.winner is not None
         assert rec.winner.champion.name == "Aphelios"
+
+        # Verify diagnostics integration in simulation mode
+        diag = controller.diagnostics.snapshot()
+        assert diag["current_state"] == "PICK_PHASE"
+        assert "simulation" in diag
+        assert diag["simulation"]["scenario"] is None
     finally:
         controller.shutdown()
 
