@@ -1,11 +1,38 @@
 from __future__ import annotations
-import os,sys
+import os
+import sys
+from pathlib import Path
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication
 from .controller import AppController
+from ..core.champions.models import ASSET_CATALOG
 from nexus.ui.shell.main_window import MainWindow
-def main()->int:
-    app=QApplication(sys.argv); app.setApplicationName("LeagueLoop Nexus")
-    controller=AppController(simulate=os.environ.get("NEXUS_SIMULATE")=="1"); controller.start()
-    window=MainWindow(controller); window.show(); app.aboutToQuit.connect(controller.shutdown)
+
+
+def main() -> int:
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("IntrusiveThots.LeagueLoopNexus.App")
+        except Exception:
+            pass
+
+    app = QApplication(sys.argv)
+    app.setApplicationName("LeagueLoop Nexus")
+
+    icon_path = ASSET_CATALOG.parent / "app.ico"
+    if icon_path.exists():
+        app.setWindowIcon(QIcon(str(icon_path)))
+
+    controller = AppController(simulate=os.environ.get("NEXUS_SIMULATE") == "1")
+    controller.start()
+    window = MainWindow(controller)
+    if icon_path.exists():
+        window.setWindowIcon(QIcon(str(icon_path)))
+    window.show()
+    app.aboutToQuit.connect(controller.shutdown)
     return app.exec()
-if __name__=="__main__": raise SystemExit(main())
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
