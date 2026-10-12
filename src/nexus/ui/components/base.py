@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import Callable, Optional
 
 from PySide6.QtCore import Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QFont, QIcon, QKeySequence, QPixmap, QShortcut
+from PySide6.QtGui import QColor, QFont, QIcon, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QAbstractButton, QFrame, QGraphicsDropShadowEffect, QHBoxLayout, QLabel,
     QLineEdit, QListWidget, QPushButton, QSizePolicy, QToolButton, QVBoxLayout,

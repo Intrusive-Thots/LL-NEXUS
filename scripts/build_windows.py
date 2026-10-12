@@ -21,6 +21,7 @@ def build():
 
     entry_point = ROOT / "src" / "nexus" / "app" / "bootstrap.py"
     assets_dir = ROOT / "assets"
+    icon_file = assets_dir / "app.ico"
     cmd = [
         sys.executable,
         "-m",
@@ -29,6 +30,7 @@ def build():
         "--clean",
         "--name=league-loop-nexus",
         "--windowed",
+        f"--icon={icon_file}",
         f"--add-data={assets_dir}{os.pathsep}assets",
         f"--paths={ROOT / 'src'}",
         str(entry_point),
