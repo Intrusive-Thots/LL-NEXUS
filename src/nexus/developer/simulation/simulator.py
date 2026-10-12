@@ -143,6 +143,16 @@ SCENARIOS: list[Scenario] = [
         _s("TIMER_CHANGE", 1.0, timer_seconds=1.0),
         _s("TIMER_CHANGE", 1.0, timer_seconds=0.0),
     ]),
+    Scenario("dodge_and_requeue", "Dodge & Requeue",
+             "A player dodges during pick phase; match aborts and returns to queue search.", [
+        _s("CONNECT"), _s("LOBBY", 0.2), _s("SEARCHING", 0.3),
+        _s("CHAMP_SELECT", 0.5, queue_type="Ranked Solo/Duo"),
+        _s("ROLE_DETECTED", 0.4, role="ADC"),
+        _s("PICK_PHASE", 0.4, timer_seconds=30.0, timer_total_seconds=30.0, action_is_pick=True),
+        _s("LOBBY", 0.5, note="someone dodged, returned to lobby"),
+        _s("SEARCHING", 0.3, note="requeued"),
+        _s("QUEUE", 0.3, note="match found ready check"),
+    ]),
 ]
 
 SCENARIO_INDEX: dict[str, Scenario] = {s.id: s for s in SCENARIOS}
