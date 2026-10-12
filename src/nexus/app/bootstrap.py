@@ -1,7 +1,7 @@
 from __future__ import annotations
 import os,sys
 from PySide6.QtWidgets import QApplication
-from .controller import AppController
+from nexus.app.controller import AppController
 from nexus.ui.shell.main_window import MainWindow
 def main()->int:
     app=QApplication(sys.argv); app.setApplicationName("LeagueLoop Nexus")
