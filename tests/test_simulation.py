@@ -80,6 +80,34 @@ def test_simulation_app_controller_lifecycle(tmp_path):
         assert rec is not None
         assert rec.winner is not None
         assert rec.winner.champion.name == "Aphelios"
+
+        diag = controller.diagnostics.snapshot()
+        assert diag["application"]["name"] == "LeagueLoop Nexus"
+        assert diag["current_state"] == LeagueState.PICK_PHASE.value
     finally:
         controller.shutdown()
+
+
+def test_manual_select_executes_action_and_registers_override(tmp_path):
+    from nexus.app.controller import AppController
+    controller = AppController(data_dir=tmp_path, simulate=True)
+    controller.start()
+    try:
+        controller.simulator.feed("CONNECT")
+        controller.simulator.feed("LOBBY")
+        controller.simulator.feed("QUEUE")
+        controller.simulator.feed("CHAMP_SELECT")
+        controller.simulator.feed("PICK_PHASE")
+
+        champ = controller.catalog.by_name("Aphelios")
+        assert champ is not None
+        controller.manual_select("Aphelios")
+
+        assert controller.sim_port.verify_selection(champ.id)
+        assert f"select:{champ.key}" in controller.sim_port.action_log
+        acted_windows = controller.automation._acted_this_action_window
+        assert len(acted_windows) > 0
+    finally:
+        controller.shutdown()
+
 
