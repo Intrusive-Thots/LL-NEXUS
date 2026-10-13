@@ -4,8 +4,8 @@ import sys
 from pathlib import Path
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication
-from .controller import AppController
-from ..core.champions.models import ASSET_CATALOG
+from nexus.app.controller import AppController
+from nexus.core.champions.models import ASSET_CATALOG
 from nexus.ui.shell.main_window import MainWindow
 
 
@@ -17,7 +17,7 @@ def main() -> int:
         except Exception:
             pass
 
-    app = QApplication(sys.argv)
+    app = QApplication.instance() or QApplication(sys.argv)
     app.setApplicationName("LeagueLoop Nexus")
 
     icon_path = ASSET_CATALOG.parent / "app.ico"
