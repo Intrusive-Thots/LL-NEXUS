@@ -50,3 +50,21 @@ def test_recommendation_role_matching_and_adjustments():
     assert rec_adc.winner and rec_adc.winner.champion.key == "Jinx"
     assert "Recommendation: Jinx" in rec_adc.explanation()[0]
 
+
+def test_recommendation_role_override():
+    catalog = ChampionCatalog([
+        Champion(1, "Garen", "Garen", "Garen", ("TOP",)),
+        Champion(2, "Ahri", "Ahri", "Ahri", ("MIDDLE",)),
+    ])
+    priorities = PriorityList()
+    priorities.set_priority("Garen", 1)
+    priorities.set_priority("Ahri", 2)
+    priorities.set_role_override("Garen", "MIDDLE")
+
+    engine = RecommendationEngine(catalog, priorities)
+    snapshot = LeagueSnapshot(role=Role.MIDDLE)
+
+    rec = engine.recommend(snapshot)
+    assert rec.winner and rec.winner.champion.key == "Garen"
+    garen_score = [c for c in rec.ranked if c.champion.key == "Garen"][0]
+    assert "MID role matched" in garen_score.reasons
