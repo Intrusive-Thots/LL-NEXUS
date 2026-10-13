@@ -125,11 +125,19 @@ class AppController:
         elif self.simulator:
             self.simulator.feed("RECONNECT")
 
-    def manual_select(self, champion_name: str) -> None:
-        """Manual override path used by the Champ Select page's big button."""
-        if self.catalog is None:
+    def manual_select(self, champion_identifier: str) -> None:
+        """Manual override path used by Champ Select controls and UI actions."""
+        if self.catalog is None or not champion_identifier:
             return
-        champ = self.catalog.by_name(champion_name)
+        champ = (
+            self.catalog.by_name(champion_identifier)
+            or self.catalog.by_key(champion_identifier)
+            or (
+                self.catalog.by_id(int(champion_identifier))
+                if champion_identifier.isdigit()
+                else None
+            )
+        )
         if champ:
             if self._port is not None:
                 try:

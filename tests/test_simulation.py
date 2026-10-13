@@ -111,3 +111,26 @@ def test_manual_select_executes_action_and_registers_override(tmp_path):
         controller.shutdown()
 
 
+def test_manual_select_flexible_lookups(tmp_path):
+    from nexus.app.controller import AppController
+    controller = AppController(data_dir=tmp_path, simulate=True)
+    controller.start()
+    try:
+        controller.simulator.feed("CONNECT")
+        controller.simulator.feed("LOBBY")
+        controller.simulator.feed("QUEUE")
+        controller.simulator.feed("CHAMP_SELECT")
+        controller.simulator.feed("PICK_PHASE")
+
+        champ = controller.catalog.by_name("Ahri")
+        assert champ is not None
+
+        # Test lookup by key ("103")
+        controller.manual_select(champ.key)
+        assert controller.sim_port.verify_selection(champ.id)
+
+        # Test lookup by numeric ID string ("103")
+        controller.manual_select(str(champ.id))
+        assert controller.sim_port.verify_selection(champ.id)
+    finally:
+        controller.shutdown()
