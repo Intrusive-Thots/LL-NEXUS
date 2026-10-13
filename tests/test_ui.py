@@ -102,3 +102,43 @@ def test_end_to_end_simulation_ui_workflow(qapp):
     controller.shutdown()
     window.close()
 
+
+def test_profile_page_alias_search_and_priority_add(qapp, tmp_path):
+    controller = AppController(data_dir=tmp_path, simulate=True)
+    controller.start()
+
+    window = MainWindow(controller)
+    window._show("Profile")
+    profile = window.profile_page
+
+    # Test alias search for Kai'Sa ("kaisa")
+    profile.search.setText("kaisa")
+    matches = profile._matches()
+    assert len(matches) > 0
+    assert "Kai'Sa" in matches
+
+    # Test adding champion via search
+    profile._add_from_search()
+    assert profile.priorities.get("KaiSa") is not None or profile.priorities.get("145") is not None or profile.priorities.has_champion("Kai'Sa") or profile.priorities.has_champion("145") or profile.priorities.get_by_name("Kai'Sa") is not None
+
+    controller.shutdown()
+    window.close()
+
+
+def test_settings_page_interactions(qapp, tmp_path):
+    controller = AppController(data_dir=tmp_path, simulate=True)
+    controller.start()
+
+    window = MainWindow(controller)
+    window.show()
+    window._show("Settings")
+    settings_p = window.settings_page
+
+    # Switch categories
+    for cat in ("Appearance", "Notifications", "Hotkeys", "Advanced"):
+        row_idx = settings_p.CATEGORIES.index(cat)
+        settings_p.nav.setCurrentRow(row_idx)
+        assert not settings_p._pages[cat].isHidden()
+
+    controller.shutdown()
+    window.close()
