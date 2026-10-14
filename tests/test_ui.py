@@ -6,6 +6,7 @@ pytestmark = pytest.mark.ui
 try:
     from PySide6.QtWidgets import QApplication
     from nexus.app.controller import AppController
+    from nexus.developer.inspector.view import EventInspector
     from nexus.ui.compact.overlay import CompactOverlay
     from nexus.ui.shell.main_window import MainWindow
     HAS_QT = True
@@ -46,6 +47,37 @@ def test_main_window_pages_and_navigation(qapp):
     window._refresh()
     controller.shutdown()
     window.close()
+
+
+def test_event_inspector_filtering_and_max_rows(qapp):
+    controller = AppController(simulate=True)
+    inspector = EventInspector(controller.bus)
+
+    # Publish multiple events with different event kinds
+    controller.bus.publish("lcu.event", source="test", detail="1")
+    controller.bus.publish("automation.decision", source="test", detail="2")
+    controller.bus.publish("automation.action", source="test", detail="3")
+
+    inspector._refresh()
+    assert inspector.table.rowCount() == 3
+
+    # Test filtering
+    inspector.search.setText("automation.")
+    assert inspector.table.rowCount() == 2
+
+    inspector.search.setText("")
+    assert inspector.table.rowCount() == 3
+
+    # Test row truncation when exceeding MAX_ROWS
+    inspector.MAX_ROWS = 5
+    for i in range(10):
+        controller.bus.publish("test.event", source="test", index=i)
+    inspector._refresh()
+    assert inspector.table.rowCount() == 5
+
+    inspector.stop()
+    controller.shutdown()
+    inspector.close()
 
 
 def test_compact_overlay(qapp):
