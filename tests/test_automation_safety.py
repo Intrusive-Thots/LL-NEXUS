@@ -182,3 +182,32 @@ def test_recommendation_generated_when_automation_disabled():
     assert controller.pending_recommendation is not None
     assert controller.pending_recommendation.winner.champion.name == "Ahri"
 
+
+def test_action_window_clears_on_leaving_champ_select():
+    bus = EventBus()
+    manager = LeagueStateManager(bus)
+    port = DummyPort()
+    catalog = ChampionCatalog([Champion(1, "Ahri", "Ahri", "Ahri", ("MIDDLE",))])
+    priorities = PriorityList()
+    priorities.set_priority("Ahri", 1)
+    engine = RecommendationEngine(catalog, priorities)
+    recorder = SessionRecorder(bus)
+    cfg = AutomationConfig(master_enabled=True, auto_pick=True)
+
+    controller = AutomationController(
+        manager, bus, port, engine, recorder, config=cfg
+    )
+
+    manager.transition(LeagueState.CONNECTED, StateConfidence.CONFIRMED)
+    manager.transition(LeagueState.LOBBY, StateConfidence.CONFIRMED)
+    manager.transition(LeagueState.QUEUE, StateConfidence.CONFIRMED)
+    manager.transition(LeagueState.CHAMP_SELECT, StateConfidence.CONFIRMED)
+    manager.transition(LeagueState.PICK_PHASE, StateConfidence.CONFIRMED, action_is_pick=True)
+
+    controller.manual_override("Ahri", 1)
+    assert len(controller._acted_this_action_window) > 0
+
+    # Transitioning back to LOBBY (e.g. dodge/requeue) clears tracked action windows
+    manager.transition(LeagueState.LOBBY, StateConfidence.CONFIRMED)
+    controller.evaluate_once()
+    assert len(controller._acted_this_action_window) == 0
