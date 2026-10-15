@@ -110,7 +110,7 @@ class PriorityList:
     # ---------------------------------------------------------- serialise
     def to_list(self) -> list[dict]:
         return [p.to_dict() for p in sorted(self._prefs.values(),
-                                            key=lambda p: p.champion_key)]
+                                            key=lambda p: str(p.champion_key or ""))]
 
     @classmethod
     def from_list(cls, rows: Iterable[dict]) -> "PriorityList":
