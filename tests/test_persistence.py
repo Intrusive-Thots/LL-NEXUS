@@ -63,3 +63,37 @@ def test_session_sqlite_persistence():
         exported = svc.export_all()
         assert len(exported) == 1
         svc.close()
+
+
+def test_priority_list_movements_and_toggles():
+    pl = PriorityList()
+    pl.set_priority("Jinx", 1)
+    pl.set_priority("Ashe", 2)
+    pl.set_priority("Ezreal", 3)
+
+    assert [p.champion_key for p in pl.ranked()] == ["Jinx", "Ashe", "Ezreal"]
+
+    # Move Ezreal up by 1 position
+    pl.move("Ezreal", -1)
+    assert [p.champion_key for p in pl.ranked()] == ["Jinx", "Ezreal", "Ashe"]
+
+    # Swap Ashe with neighbor towards start
+    assert pl.swap_with_neighbour("Ashe", towards_start=True) is True
+    assert [p.champion_key for p in pl.ranked()] == ["Jinx", "Ashe", "Ezreal"]
+
+    # Move unranked champion
+    pl.move("Caitlyn", -1)
+    assert pl.get("Caitlyn").priority == 1
+
+    # Toggles and removal
+    assert pl.toggle_disabled("Jinx") is True
+    assert pl.get("Jinx").disabled is True
+
+    assert pl.toggle_never_pick("Jinx") is True
+    assert pl.get("Jinx").never_pick is True
+
+    assert pl.toggle_preferred("Jinx") is True
+    assert pl.get("Jinx").preferred is True
+
+    pl.remove_priority("Jinx")
+    assert pl.get("Jinx").priority is None
