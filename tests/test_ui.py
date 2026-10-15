@@ -48,6 +48,39 @@ def test_main_window_pages_and_navigation(qapp):
     window.close()
 
 
+def test_event_inspector_filtering(qapp):
+    from nexus.developer.inspector.view import EventInspector
+
+    controller = AppController(simulate=True)
+    controller.start()
+
+    inspector = EventInspector(controller.bus)
+    controller.bus.publish("state.changed", source="sim", state="CONNECTED")
+    controller.bus.publish("automation.evaluated", source="auto", decision="ACCEPT")
+    controller.bus.publish("lcu.raw", source="lcu", detail="raw payload content")
+
+    inspector._refresh()
+    initial_rows = inspector.table.rowCount()
+    assert initial_rows >= 3
+
+    # Apply filter by event kind
+    inspector.search.setText("automation.")
+    assert inspector.table.rowCount() == 1
+    assert "automation." in inspector.table.item(0, 1).text()
+
+    # Apply filter by payload content
+    inspector.search.setText("raw payload")
+    assert inspector.table.rowCount() == 1
+    assert "lcu.raw" in inspector.table.item(0, 1).text()
+
+    # Clear filter
+    inspector.search.setText("")
+    assert inspector.table.rowCount() >= 3
+
+    inspector.stop()
+    controller.shutdown()
+
+
 def test_compact_overlay(qapp):
     controller = AppController(simulate=True)
     controller.start()
