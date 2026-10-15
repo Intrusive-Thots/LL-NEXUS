@@ -53,7 +53,8 @@ class EventInspector(QWidget):
         self._seen = 0
 
     def _set_filter(self, text: str) -> None:
-        self._filter = text.strip()
+        self._filter = text.strip().lower()
+        self.table.setRowCount(0)
         self._seen = 0
         self._refresh()
 
@@ -64,8 +65,15 @@ class EventInspector(QWidget):
         new = events[self._seen:] if len(events) >= self._seen else events
         self._seen = len(events)
         for ev in new:
-            if self._filter and self._filter not in ev.kind:
-                continue
+            if self._filter:
+                payload_str = ", ".join(f"{k}={v}" for k, v in ev.payload.items())
+                match = (
+                    self._filter in ev.kind.lower()
+                    or self._filter in ev.source.lower()
+                    or self._filter in payload_str.lower()
+                )
+                if not match:
+                    continue
             row = self.table.rowCount()
             if row >= self.MAX_ROWS:
                 self.table.removeRow(0)
