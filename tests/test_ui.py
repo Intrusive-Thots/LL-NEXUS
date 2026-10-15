@@ -103,6 +103,50 @@ def test_end_to_end_simulation_ui_workflow(qapp):
     window.close()
 
 
+def test_priority_list_reordering_and_toggles(qapp, tmp_path):
+    controller = AppController(data_dir=tmp_path, simulate=True)
+    controller.start()
+
+    window = MainWindow(controller)
+    window._show("Profile")
+    profile = window.profile_page
+    plist = profile.list
+
+    # Populate priorities
+    plist.priorities.set_priority("266", 1)  # Aatrox
+    plist.priorities.set_priority("103", 2)  # Ahri
+    plist.reload()
+
+    from PySide6.QtCore import Qt
+    user_role = Qt.ItemDataRole.UserRole
+
+    # Ensure we have ranked items in list
+    assert plist.count() >= 2
+    key_first = plist.item(0).data(user_role)
+    key_second = plist.item(1).data(user_role)
+
+    # Select second item and move up
+    plist.setCurrentRow(1)
+    plist.move_current(-1)
+    assert plist.item(0).data(user_role) == key_second
+
+    # Test toggles: disabled, preferred, never_pick
+    plist.priorities.toggle_disabled(key_second)
+    plist.reload()
+    assert "disabled" in plist.item(0).text()
+
+    plist.priorities.toggle_preferred(key_second)
+    plist.reload()
+    assert "preferred" in plist.item(0).text()
+
+    plist.priorities.toggle_never_pick(key_second)
+    plist.reload()
+    assert "never" in plist.item(0).text()
+
+    controller.shutdown()
+    window.close()
+
+
 def test_profile_page_alias_search_and_priority_add(qapp, tmp_path):
     controller = AppController(data_dir=tmp_path, simulate=True)
     controller.start()
