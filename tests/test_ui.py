@@ -103,6 +103,25 @@ def test_end_to_end_simulation_ui_workflow(qapp):
     window.close()
 
 
+def test_developer_export_diagnostics(qapp):
+    controller = AppController(simulate=True)
+    controller.start()
+
+    window = MainWindow(controller)
+    window._show("Developer")
+
+    # Trigger export diagnostics handler
+    window._export_diagnostics()
+
+    # Verify notification event was emitted
+    history = controller.bus.history()
+    notify_events = [ev for ev in history if ev.kind == "notify" and ev.payload.get("title") == "Diagnostics Exported"]
+    assert len(notify_events) == 1
+
+    controller.shutdown()
+    window.close()
+
+
 def test_profile_page_alias_search_and_priority_add(qapp, tmp_path):
     controller = AppController(data_dir=tmp_path, simulate=True)
     controller.start()
