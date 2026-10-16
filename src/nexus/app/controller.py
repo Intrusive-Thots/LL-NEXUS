@@ -127,14 +127,17 @@ class AppController:
 
     def manual_select(self, champion_identifier: str) -> None:
         """Manual override path used by Champ Select controls and UI actions."""
-        if self.catalog is None or not champion_identifier:
+        if self.catalog is None or champion_identifier is None:
+            return
+        identifier = str(champion_identifier).strip()
+        if not identifier:
             return
         champ = (
-            self.catalog.by_name(champion_identifier)
-            or self.catalog.by_key(champion_identifier)
+            self.catalog.by_name(identifier)
+            or self.catalog.by_key(identifier)
             or (
-                self.catalog.by_id(int(champion_identifier))
-                if champion_identifier.isdigit()
+                self.catalog.by_id(int(identifier))
+                if identifier.isdigit()
                 else None
             )
         )
