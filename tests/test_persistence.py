@@ -40,6 +40,26 @@ def test_priority_persistence():
         assert lux_pref is not None and lux_pref.priority == 2
 
 
+def test_priority_normalization():
+    sparse_data = [
+        {"champion_key": "Ahri", "priority": 1},
+        {"champion_key": "Lux", "priority": 5},
+        {"champion_key": "Jinx", "priority": 12},
+    ]
+    pl = PriorityList.from_list(sparse_data)
+    assert pl.get("Ahri").priority == 1
+    assert pl.get("Lux").priority == 2
+    assert pl.get("Jinx").priority == 3
+
+    # Direct call to normalize
+    pl_direct = PriorityList.from_list([])
+    pl_direct.ensure("Ahri").priority = 10
+    pl_direct.ensure("Lux").priority = 20
+    pl_direct.normalize()
+    assert pl_direct.get("Ahri").priority == 1
+    assert pl_direct.get("Lux").priority == 2
+
+
 def test_session_sqlite_persistence():
     with tempfile.TemporaryDirectory() as td:
         dir_path = Path(td)
