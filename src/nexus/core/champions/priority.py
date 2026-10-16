@@ -107,6 +107,12 @@ class PriorityList:
     def record_pick(self, key: str, now: float) -> None:
         self.ensure(key).record_pick(now)
 
+    def normalize(self) -> None:
+        """Ensure ranked items have dense, 1-based sequential priorities without gaps."""
+        ranked = self.ranked()
+        for i, p in enumerate(ranked, start=1):
+            p.priority = i
+
     # ---------------------------------------------------------- serialise
     def to_list(self) -> list[dict]:
         return [p.to_dict() for p in sorted(self._prefs.values(),
@@ -114,4 +120,6 @@ class PriorityList:
 
     @classmethod
     def from_list(cls, rows: Iterable[dict]) -> "PriorityList":
-        return cls(ChampionPreference.from_dict(r) for r in rows)
+        pl = cls(ChampionPreference.from_dict(r) for r in rows)
+        pl.normalize()
+        return pl
