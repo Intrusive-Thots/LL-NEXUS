@@ -119,7 +119,11 @@ def test_profile_page_alias_search_and_priority_add(qapp, tmp_path):
 
     # Test adding champion via search
     profile._add_from_search()
-    assert profile.priorities.get("KaiSa") is not None or profile.priorities.get("145") is not None or profile.priorities.has_champion("Kai'Sa") or profile.priorities.has_champion("145") or profile.priorities.get_by_name("Kai'Sa") is not None
+    pref = profile.priorities.get("145") or profile.priorities.get("KaiSa")
+    assert pref is not None
+    assert pref.priority is not None
+    assert pref.priority > 0
+    assert any(p.champion_key in ("145", "KaiSa") for p in profile.priorities.ranked())
 
     controller.shutdown()
     window.close()
