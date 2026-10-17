@@ -54,6 +54,7 @@ class EventInspector(QWidget):
 
     def _set_filter(self, text: str) -> None:
         self._filter = text.strip()
+        self.table.setRowCount(0)
         self._seen = 0
         self._refresh()
 
@@ -66,11 +67,9 @@ class EventInspector(QWidget):
         for ev in new:
             if self._filter and self._filter not in ev.kind:
                 continue
-            row = self.table.rowCount()
-            if row >= self.MAX_ROWS:
+            if self.table.rowCount() >= self.MAX_ROWS:
                 self.table.removeRow(0)
-                row = self.table.rowCount() - 1
-                self._reindex()
+            row = self.table.rowCount()
             self.table.insertRow(row)
             ts = time.strftime("%H:%M:%S", time.localtime(ev.ts))
             payload = ", ".join(f"{k}={_short(v)}" for k, v in ev.payload.items())
@@ -80,9 +79,6 @@ class EventInspector(QWidget):
                     item.setData(Qt.UserRole, ev.kind)
                 self.table.setItem(row, col, item)
             self.table.scrollToBottom()
-
-    def _reindex(self) -> None:
-        self._seen = max(0, self._seen - 1)
 
     def stop(self) -> None:
         self._timer.stop()
