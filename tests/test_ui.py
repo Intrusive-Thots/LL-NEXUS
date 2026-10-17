@@ -48,6 +48,42 @@ def test_main_window_pages_and_navigation(qapp):
     window.close()
 
 
+def test_event_inspector_filtering_and_truncation(qapp):
+    from nexus.core.events.bus import EventBus
+    from nexus.developer.inspector.view import EventInspector
+
+    bus = EventBus()
+    inspector = EventInspector(bus)
+
+    bus.publish("state.changed", state="LOBBY")
+    bus.publish("automation.evaluated", status="IDLE")
+    bus.publish("lcu.gameflow", phase="ChampSelect")
+
+    inspector._refresh()
+    assert inspector.table.rowCount() == 3
+
+    # Test filtering by event kind substring
+    inspector.search.setText("automation")
+    assert inspector.table.rowCount() == 1
+    assert inspector.table.item(0, 1).text() == "automation.evaluated"
+
+    # Reset filter
+    inspector.search.setText("")
+    assert inspector.table.rowCount() == 3
+
+    # Test MAX_ROWS truncation
+    for i in range(450):
+        bus.publish(f"test.event.{i}", i=i)
+
+    inspector._refresh()
+    assert inspector.table.rowCount() == EventInspector.MAX_ROWS
+    # Last row should be the last published event (index 449)
+    last_item_kind = inspector.table.item(EventInspector.MAX_ROWS - 1, 1).text()
+    assert last_item_kind == "test.event.449"
+
+    inspector.stop()
+
+
 def test_compact_overlay(qapp):
     controller = AppController(simulate=True)
     controller.start()
