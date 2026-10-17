@@ -134,3 +134,56 @@ def test_manual_select_flexible_lookups(tmp_path):
         assert controller.sim_port.verify_selection(champ.id)
     finally:
         controller.shutdown()
+
+
+def test_app_controller_simulation_end_to_end(tmp_path):
+    import sys
+    from PySide6.QtWidgets import QApplication
+    from nexus.app.controller import AppController
+    from nexus.ui.shell.main_window import MainWindow
+
+    app = QApplication.instance() or QApplication(sys.argv)
+    controller = AppController(data_dir=tmp_path, simulate=True)
+    controller.start()
+    window = MainWindow(controller=controller)
+    window.show()
+
+    try:
+        # Simulate full Champ Select transition
+        controller.simulator.feed("CONNECT")
+        controller.simulator.feed("LOBBY")
+        controller.simulator.feed("QUEUE")
+        controller.simulator.feed("CHAMP_SELECT")
+        controller.simulator.feed("ROLE_DETECTED", role="ADC")
+        controller.simulator.feed("PICK_PHASE", timer_seconds=30.0, timer_total_seconds=30.0, action_is_pick=True)
+
+        window._refresh()
+        app.processEvents()
+
+        # Force evaluation/refresh so pending_recommendation is updated for window refresh
+        snap = controller.manager.snapshot()
+        rec = controller.automation._refresh_recommendation(snap)
+        window._refresh()
+        app.processEvents()
+
+        assert rec is not None
+        assert rec.winner is not None
+        assert rec.winner.champion.name == "Aphelios"
+        assert window.rec_title.text() == "Aphelios"
+
+        # Execute manual override via UI
+        window._manual_select()
+        app.processEvents()
+
+        champ = controller.catalog.by_name("Aphelios")
+        assert controller.sim_port.verify_selection(champ.id)
+        assert f"select:{champ.key}" in controller.sim_port.action_log
+
+        # Transition to locked state
+        controller.simulator.feed("LOCKED", locked_in=True)
+        window._refresh()
+        app.processEvents()
+        assert controller.manager.snapshot().state == LeagueState.LOCKED
+    finally:
+        window.close()
+        controller.shutdown()
