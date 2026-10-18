@@ -40,6 +40,20 @@ def test_priority_persistence():
         assert lux_pref is not None and lux_pref.priority == 2
 
 
+def test_priority_from_list_normalizes_gaps():
+    rows = [
+        {"champion_key": "Jinx", "priority": 10},
+        {"champion_key": "Ezreal", "priority": 3},
+        {"champion_key": "Ashe", "priority": 99},
+        {"champion_key": "Vayne", "priority": None},
+    ]
+    plist = PriorityList.from_list(rows)
+    assert plist.get("Ezreal").priority == 1
+    assert plist.get("Jinx").priority == 2
+    assert plist.get("Ashe").priority == 3
+    assert plist.get("Vayne").priority is None
+
+
 def test_session_sqlite_persistence():
     with tempfile.TemporaryDirectory() as td:
         dir_path = Path(td)
