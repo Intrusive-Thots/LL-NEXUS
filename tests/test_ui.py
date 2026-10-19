@@ -6,6 +6,7 @@ pytestmark = pytest.mark.ui
 try:
     from PySide6.QtWidgets import QApplication
     from nexus.app.controller import AppController
+    from nexus.developer.inspector.view import EventInspector
     from nexus.ui.compact.overlay import CompactOverlay
     from nexus.ui.shell.main_window import MainWindow
     HAS_QT = True
@@ -46,6 +47,27 @@ def test_main_window_pages_and_navigation(qapp):
     window._refresh()
     controller.shutdown()
     window.close()
+
+
+def test_event_inspector(qapp):
+    controller = AppController(simulate=True)
+    bus = controller.bus
+
+    inspector = EventInspector(bus)
+    bus.publish("automation.evaluated", source="automation", detail="action_picked")
+    bus.publish("lcu.gameflow", source="lcu", phase="ChampSelect")
+
+    inspector._refresh()
+    assert inspector.table.rowCount() == 2
+
+    # Test filtering by event kind
+    inspector.search.setText("automation.")
+    assert inspector.table.rowCount() == 1
+    assert inspector.table.item(0, 1).text() == "automation.evaluated"
+
+    inspector.stop()
+    inspector.close()
+    controller.shutdown()
 
 
 def test_compact_overlay(qapp):
