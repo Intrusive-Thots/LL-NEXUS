@@ -134,3 +134,32 @@ def test_manual_select_flexible_lookups(tmp_path):
         assert controller.sim_port.verify_selection(champ.id)
     finally:
         controller.shutdown()
+
+
+def test_diagnostics_redaction():
+    from nexus.developer.diagnostics.service import DiagnosticsService
+    b = EventBus()
+    m = LeagueStateManager(b)
+    ds = DiagnosticsService(m, b)
+
+    ds.register("sensitive_component", lambda: {
+        "auth_token": "secret_token_123",
+        "champion_key": "103",
+        "password": "my_password",
+        "api_key": "api_key=xyz987",
+        "session": "session_abc",
+        "normal_field": "visible_value"
+    })
+
+    snap = ds.snapshot()
+    comp = snap["sensitive_component"]
+    assert comp["auth_token"] == "[REDACTED]"
+    assert comp["password"] == "[REDACTED]"
+    assert comp["session"] == "[REDACTED]"
+    assert comp["normal_field"] == "visible_value"
+    assert comp["champion_key"] == "103"
+
+    text = ds.export_text()
+    assert "[REDACTED]" in text
+    assert "visible_value" in text
+    assert "103" in text
