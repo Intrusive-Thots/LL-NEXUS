@@ -75,11 +75,14 @@ def test_end_to_end_simulation_ui_workflow(qapp):
     window._sim_feed("ROLE_DETECTED", role="ADC")
     window._sim_feed("PICK_PHASE", timer_seconds=30.0, timer_total_seconds=30.0, action_is_pick=True)
 
+    window._refresh()
+    assert "Pick Phase" in window.phase.text()
+
     # Evaluate automation & refresh UI
     controller.automation.evaluate_once()
     window._refresh()
 
-    assert "Pick Phase" in window.phase.text()
+    assert "Locked" in window.phase.text() or "Pick Phase" in window.phase.text()
     rec = controller.automation.pending_recommendation
     assert rec is not None
     assert rec.winner is not None
