@@ -50,3 +50,28 @@ def test_recommendation_role_matching_and_adjustments():
     assert rec_adc.winner and rec_adc.winner.champion.key == "Jinx"
     assert "Recommendation: Jinx" in rec_adc.explanation()[0]
 
+
+def test_recommendation_role_override():
+    # Ahri is catalog MIDDLE, but overridden to TOP
+    catalog = ChampionCatalog([
+        Champion(1, "Ahri", "Ahri", "Ahri", ("MIDDLE",)),
+        Champion(2, "Garen", "Garen", "Garen", ("TOP",)),
+    ])
+    priorities = PriorityList()
+    priorities.set_priority("Ahri", 1)
+    priorities.set_priority("Garen", 2)
+
+    p_ahri = priorities.ensure("Ahri")
+    p_ahri.role_override = "TOP"
+
+    engine = RecommendationEngine(catalog, priorities)
+
+    # When role is TOP, Ahri matches role_override TOP
+    rec_top = engine.recommend(LeagueSnapshot(role=Role.TOP))
+    ahri_score = next(c for c in rec_top.ranked if c.champion.key == "Ahri")
+    assert "Top role matched" in ahri_score.reasons
+
+    # When role is MIDDLE, Ahri does NOT match because role_override TOP overrides catalog MIDDLE
+    rec_mid = engine.recommend(LeagueSnapshot(role=Role.MIDDLE))
+    ahri_score_mid = next(c for c in rec_mid.ranked if c.champion.key == "Ahri")
+    assert "Off-role for MID" in ahri_score_mid.reasons
