@@ -103,6 +103,24 @@ def test_end_to_end_simulation_ui_workflow(qapp):
     window.close()
 
 
+def test_champ_select_panel_alias_search(qapp, tmp_path):
+    controller = AppController(data_dir=tmp_path, simulate=True)
+    controller.start()
+
+    window = MainWindow(controller)
+    window._show("Champ Select")
+    pool = window.pool
+
+    # Search for "kaisa" (alias for Kai'Sa)
+    pool.search.setText("kaisa")
+    pool.refresh(force=True)
+
+    assert "Kai'Sa" in [c.name for c in pool.grid._champions]
+
+    controller.shutdown()
+    window.close()
+
+
 def test_profile_page_alias_search_and_priority_add(qapp, tmp_path):
     controller = AppController(data_dir=tmp_path, simulate=True)
     controller.start()
