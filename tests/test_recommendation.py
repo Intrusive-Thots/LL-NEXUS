@@ -50,3 +50,29 @@ def test_recommendation_role_matching_and_adjustments():
     assert rec_adc.winner and rec_adc.winner.champion.key == "Jinx"
     assert "Recommendation: Jinx" in rec_adc.explanation()[0]
 
+
+def test_recommendation_role_override_evaluated_strictly():
+    catalog = ChampionCatalog([
+        Champion(1, "Lulu", "Lulu", "Lulu", ("SUPPORT",)),
+    ])
+    priorities = PriorityList()
+    priorities.set_priority("Lulu", 1)
+
+    engine = RecommendationEngine(catalog, priorities)
+
+    # By default, Lulu matches SUPPORT role
+    rec_supp = engine.recommend(LeagueSnapshot(role=Role.SUPPORT))
+    assert rec_supp.winner and rec_supp.winner.factors["role"] > 0
+
+    # Setting role_override to TOP means Lulu is evaluated strictly as TOP
+    pref = priorities.get("Lulu")
+    assert pref is not None
+    pref.role_override = "TOP"
+
+    rec_supp_override = engine.recommend(LeagueSnapshot(role=Role.SUPPORT))
+    assert rec_supp_override.winner and rec_supp_override.winner.factors["role"] < 0
+    assert f"Off-role for {Role.SUPPORT.display}" in rec_supp_override.winner.reasons
+
+    rec_top_override = engine.recommend(LeagueSnapshot(role=Role.TOP))
+    assert rec_top_override.winner and rec_top_override.winner.factors["role"] > 0
+    assert f"{Role.TOP.display} role matched" in rec_top_override.winner.reasons

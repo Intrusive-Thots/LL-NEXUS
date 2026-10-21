@@ -137,10 +137,12 @@ class RecommendationEngine:
 
             role_matches = False
             if role_str:
-                effective_role = (pref.role_override.upper()
-                                  if pref and pref.role_override else None)
-                if effective_role == role_str or any(r.upper() == role_str for r in champ.roles):
-                    role_matches = True
+                if pref and pref.role_override:
+                    role_matches = (pref.role_override.upper() == role_str)
+                else:
+                    role_matches = any(r.upper() == role_str for r in champ.roles)
+
+                if role_matches:
                     score += W_ROLE_MATCH
                     factors["role"] = W_ROLE_MATCH
                     reasons.append(f"{role.display} role matched")
