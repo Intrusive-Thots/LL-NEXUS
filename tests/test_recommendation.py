@@ -50,3 +50,26 @@ def test_recommendation_role_matching_and_adjustments():
     assert rec_adc.winner and rec_adc.winner.champion.key == "Jinx"
     assert "Recommendation: Jinx" in rec_adc.explanation()[0]
 
+
+def test_recommendation_role_override_strict_evaluation():
+    catalog = ChampionCatalog([
+        Champion(111, "111", "Nautilus", "Nautilus", ("SUPPORT", "MIDDLE")),
+    ])
+    priorities = PriorityList()
+    pref = priorities.ensure("111")
+    pref.role_override = "SUPPORT"
+
+    engine = RecommendationEngine(catalog, priorities)
+
+    # When assigned role is MID, even though Nautilus has "MIDDLE" in catalog,
+    # role_override "SUPPORT" strictly overrides and causes off-role evaluation.
+    snapshot_mid = LeagueSnapshot(role=Role.MIDDLE)
+    rec_mid = engine.recommend(snapshot_mid)
+    assert rec_mid.winner is not None
+    assert any("Off-role for MID" in r for r in rec_mid.winner.reasons)
+
+    # When assigned role is SUPPORT, role_override "SUPPORT" matches.
+    snapshot_supp = LeagueSnapshot(role=Role.SUPPORT)
+    rec_supp = engine.recommend(snapshot_supp)
+    assert rec_supp.winner is not None
+    assert any("SUP role matched" in r for r in rec_supp.winner.reasons)
