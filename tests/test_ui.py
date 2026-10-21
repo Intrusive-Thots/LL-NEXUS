@@ -103,6 +103,54 @@ def test_end_to_end_simulation_ui_workflow(qapp):
     window.close()
 
 
+def test_priority_list_ui_operations(qapp, tmp_path):
+    from PySide6.QtCore import QEvent, Qt
+    from PySide6.QtGui import QKeyEvent
+    from nexus.ui.champion.priority_list import NexusPriorityList
+
+    controller = AppController(data_dir=tmp_path, simulate=True)
+    controller.start()
+
+    plist = NexusPriorityList(controller.priorities, controller.catalog)
+    controller.priorities.set_priority("103", 1)  # Ahri key
+    controller.priorities.set_priority("266", 2)  # Aatrox key
+    controller.priorities.set_priority("84", 3)   # Akali key
+    plist.reload()
+
+    assert plist.count() == 3
+    assert plist.item(0).data(Qt.ItemDataRole.UserRole) == "103"
+
+    # Test move_current up/down and reorder commit
+    plist.setCurrentRow(1)  # Aatrox ("266")
+    plist.move_current(-1)  # Move Aatrox to position 1
+    assert plist.item(0).data(Qt.ItemDataRole.UserRole) == "266"
+    assert controller.priorities.get("266").priority == 1
+
+    # Test keyPressEvent with Alt+Down
+    event = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Down, Qt.KeyboardModifier.AltModifier)
+    plist.keyPressEvent(event)  # Move Aatrox down
+    assert plist.item(1).data(Qt.ItemDataRole.UserRole) == "266"
+
+    # Test context menu toggles / options directly on priorities/list
+    key = "266"
+    pref = controller.priorities.ensure(key)
+
+    controller.priorities.toggle_disabled(key)
+    assert pref.disabled is True
+
+    controller.priorities.toggle_never_pick(key)
+    assert pref.never_pick is True
+
+    controller.priorities.toggle_preferred(key)
+    assert pref.preferred is True
+
+    controller.priorities.remove_priority(key)
+    plist.reload()
+    assert plist.count() == 2
+
+    controller.shutdown()
+
+
 def test_profile_page_alias_search_and_priority_add(qapp, tmp_path):
     controller = AppController(data_dir=tmp_path, simulate=True)
     controller.start()
