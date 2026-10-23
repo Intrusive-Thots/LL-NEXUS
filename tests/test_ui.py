@@ -103,6 +103,33 @@ def test_end_to_end_simulation_ui_workflow(qapp):
     window.close()
 
 
+def test_champion_select_panel_search_matching(qapp, tmp_path):
+    controller = AppController(data_dir=tmp_path, simulate=True)
+    controller.start()
+
+    window = MainWindow(controller)
+    panel = window.pool
+
+    # Test alias search "kaisa"
+    panel.search.setText("kaisa")
+    kaisa = controller.catalog.by_name("Kai'Sa")
+    assert kaisa is not None
+    assert kaisa.key in panel.grid._tiles
+
+    # Test numeric key search "145"
+    panel.search.setText("145")
+    assert kaisa.key in panel.grid._tiles
+
+    # Test role search "adc"
+    panel.search.setText("adc")
+    adc_tiles = list(panel.grid._tiles.keys())
+    assert len(adc_tiles) > 0
+    assert kaisa.key in adc_tiles
+
+    controller.shutdown()
+    window.close()
+
+
 def test_profile_page_alias_search_and_priority_add(qapp, tmp_path):
     controller = AppController(data_dir=tmp_path, simulate=True)
     controller.start()
