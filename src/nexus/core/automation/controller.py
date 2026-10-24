@@ -20,7 +20,7 @@ from ..events.bus import EventBus
 from ..recommendations.engine import RecommendationEngine, Recommendation
 from ..sessions.recorder import SessionRecorder
 from ..state.manager import LeagueStateManager
-from ..state.models import LeagueSnapshot, LeagueState, Role, StateConfidence
+from ..state.models import LeagueSnapshot, LeagueState, StateConfidence
 from .config import AutomationConfig, BanMode
 from .kill_switch import GlobalKillSwitch, KillSwitchTripped
 from .port import LCUActionPort
