@@ -104,6 +104,10 @@ class PriorityList:
         p.preferred = not p.preferred
         return p.preferred
 
+    def set_role_override(self, key: str, role: Optional[str]) -> None:
+        p = self.ensure(key)
+        p.role_override = role.upper() if role else None
+
     def record_pick(self, key: str, now: float) -> None:
         self.ensure(key).record_pick(now)
 

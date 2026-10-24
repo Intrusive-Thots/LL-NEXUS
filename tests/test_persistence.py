@@ -30,6 +30,7 @@ def test_priority_persistence():
 
         store.priorities.set_priority("Ahri", 1)
         store.priorities.set_priority("Lux", 2)
+        store.priorities.set_role_override("Ahri", "TOP")
         store.save_priorities()
 
         store2 = SettingsStore(dir_path)
@@ -37,6 +38,7 @@ def test_priority_persistence():
         ahri_pref = store2.priorities.get("Ahri")
         lux_pref = store2.priorities.get("Lux")
         assert ahri_pref is not None and ahri_pref.priority == 1
+        assert ahri_pref.role_override == "TOP"
         assert lux_pref is not None and lux_pref.priority == 2
 
 
