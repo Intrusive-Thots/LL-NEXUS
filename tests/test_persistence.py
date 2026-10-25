@@ -63,3 +63,30 @@ def test_session_sqlite_persistence():
         exported = svc.export_all()
         assert len(exported) == 1
         svc.close()
+
+
+def test_session_recorder_syncs_queue_and_role():
+    from nexus.core.events.bus import EventBus
+    from nexus.core.sessions.recorder import SessionRecorder
+    from nexus.core.state.manager import LeagueStateManager
+    from nexus.core.state.models import LeagueState, Role
+
+    bus = EventBus()
+    state_mgr = LeagueStateManager(bus)
+    recorder = SessionRecorder(bus)
+
+    # Transition DISCONNECTED -> CONNECTED -> LOBBY -> QUEUE
+    state_mgr.transition(LeagueState.CONNECTED)
+    state_mgr.transition(LeagueState.LOBBY)
+    state_mgr.transition(LeagueState.QUEUE, queue_type="Ranked Solo/Duo", role=Role.ADC)
+    session = recorder.active
+    assert session is not None
+    assert session.queue_type == "Ranked Solo/Duo"
+    assert session.role == "ADC"
+
+    # Field updates propagate
+    state_mgr.update_fields(queue_type="Flex", role=Role.MIDDLE)
+    assert session.queue_type == "Ranked Solo/Duo"  # set_context keeps first non-null queue_type
+    assert session.role == "MIDDLE"  # role gets updated if initially set or overridden
+
+    recorder.shutdown()
