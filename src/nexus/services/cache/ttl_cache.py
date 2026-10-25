@@ -50,11 +50,18 @@ class TTLCache:
                 del self._mem[url]
         dp = self._disk_path(url)
         if dp and dp.exists():
-            data = dp.read_bytes()
-            self.put(url, data)
-            with self._lock:
-                self.hits += 1
-            return data
+            try:
+                mtime = dp.stat().st_mtime
+                if now - mtime <= self._ttl:
+                    data = dp.read_bytes()
+                    self.put(url, data)
+                    with self._lock:
+                        self.hits += 1
+                    return data
+                else:
+                    dp.unlink(missing_ok=True)
+            except OSError:
+                pass
         with self._lock:
             self.misses += 1
         return None
