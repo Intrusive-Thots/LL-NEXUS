@@ -54,7 +54,11 @@ class SessionRecorder:
     def _on_event(self, event: NexusEvent) -> None:
         kind = event.kind
         p = event.payload
-        if kind in ("state.fields_updated", "state.confidence", "state.rejected"):
+        if kind == "state.fields_updated":
+            if self.active:
+                self._sync_context(p)
+            return
+        if kind in ("state.confidence", "state.rejected"):
             return
         if kind == "state.changed":
             new = p.get("new")
@@ -137,6 +141,16 @@ class SessionRecorder:
             self._add("failure", "Automation paused: state not confirmed")
 
     # -------------------------------------------------------------- helpers
+    def _sync_context(self, p: dict) -> None:
+        s = self.active
+        if not s:
+            return
+        q = p.get("queue_type")
+        r = p.get("role")
+        if r is not None and hasattr(r, "value"):
+            r = r.value
+        s.set_context(queue_type=q, role=r)
+
     def _start_session(self, p: dict) -> None:
         with self._lock:
             if self._active is not None:
@@ -144,6 +158,7 @@ class SessionRecorder:
             self._counter += 1
             self._active = Session(number=self._counter)
             s = self._active
+        self._sync_context(p)
         s.add("state", f"Queue started ({p.get('reason') or p.get('new')})")
 
     def _ensure_session(self, p: dict) -> Session:
@@ -151,7 +166,9 @@ class SessionRecorder:
             if self._active is None:
                 self._counter += 1
                 self._active = Session(number=self._counter)
-            return self._active
+            s = self._active
+        self._sync_context(p)
+        return s
 
     def _add(self, kind: str, text: str, **detail) -> None:
         s = self._ensure_session({})
