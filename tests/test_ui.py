@@ -48,6 +48,71 @@ def test_main_window_pages_and_navigation(qapp):
     window.close()
 
 
+def test_champ_select_panel_search_filtering(qapp):
+    controller = AppController(simulate=True)
+    controller.start()
+
+    window = MainWindow(controller)
+    panel = window.pool
+
+    # Search by alias "kaisa"
+    panel.search.setText("kaisa")
+    assert any(tile.champion.name == "Kai'Sa" for tile in panel.grid._tiles.values())
+
+    # Search by role "adc"
+    panel.search.setText("adc")
+    assert int(panel.count_label.text().split()[0]) > 0
+
+    controller.shutdown()
+    window.close()
+
+
+def test_automation_page_control_synchronization(qapp, tmp_path):
+    controller = AppController(data_dir=tmp_path, simulate=True)
+    controller.start()
+
+    window = MainWindow(controller)
+    window._show("Automation")
+
+    assert window.auto_accept_cb.isChecked() == controller.settings.automation.auto_accept_ready
+    assert window.auto_pick_cb.isChecked() == controller.settings.automation.auto_pick
+
+    # Update config and refresh MainWindow
+    controller.update_config(auto_accept_ready=False, auto_pick=False)
+    window._refresh()
+
+    assert not window.auto_accept_cb.isChecked()
+    assert not window.auto_pick_cb.isChecked()
+
+    controller.shutdown()
+    window.close()
+
+
+def test_diagnostics_service_redaction():
+    from nexus.developer.diagnostics.service import DiagnosticsService, _redact
+    from nexus.core.events.bus import EventBus
+    from nexus.core.state.manager import LeagueStateManager
+
+    bus = EventBus()
+    manager = LeagueStateManager(bus)
+    diag = DiagnosticsService(manager, bus)
+
+    data = {
+        "api_key": "secret123",
+        "auth_token": "bearer xyz",
+        "champion_key": "103",
+        "nested": {"password": "pass", "session": "s1", "champion_key_str": "103"},
+    }
+    redacted = _redact(data)
+
+    assert redacted["api_key"] == "[REDACTED]"
+    assert redacted["auth_token"] == "[REDACTED]"
+    assert redacted["champion_key"] == "103"
+    assert redacted["nested"]["password"] == "[REDACTED]"
+    assert redacted["nested"]["session"] == "[REDACTED]"
+    assert redacted["nested"]["champion_key_str"] == "103"
+
+
 def test_compact_overlay(qapp):
     controller = AppController(simulate=True)
     controller.start()

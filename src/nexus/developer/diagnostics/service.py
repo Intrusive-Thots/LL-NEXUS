@@ -15,15 +15,22 @@ from typing import Any, Optional
 from ...core.events.bus import EventBus
 from ...core.state.manager import LeagueStateManager
 
-_SECRET_RE = re.compile(r"(token|password|sessionid|key)\s*[:=]\s*\S+", re.I)
+_SECRET_RE = re.compile(r"(token|password|sessionid|secret|api_key|auth_key)\s*[:=]\s*\S+", re.I)
 
 
 def _redact(value: Any) -> Any:
     if isinstance(value, str):
         return _SECRET_RE.sub(lambda m: f"{m.group(1)}=[REDACTED]", value)
     if isinstance(value, dict):
-        return {k: ("[REDACTED]" if re.search(r"token|password|session", k, re.I)
-                    else _redact(v)) for k, v in value.items()}
+        return {
+            k: (
+                "[REDACTED]"
+                if re.search(r"token|password|session|secret|auth|api_key|auth_key", k, re.I)
+                and not k.lower().startswith("champion_")
+                else _redact(v)
+            )
+            for k, v in value.items()
+        }
     if isinstance(value, (list, tuple)):
         return [_redact(v) for v in value]
     return value
