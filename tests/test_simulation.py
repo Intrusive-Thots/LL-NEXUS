@@ -134,3 +134,22 @@ def test_manual_select_flexible_lookups(tmp_path):
         assert controller.sim_port.verify_selection(champ.id)
     finally:
         controller.shutdown()
+
+
+def test_simulation_scenario_playback_and_state_transitions(tmp_path):
+    from nexus.app.controller import AppController
+    controller = AppController(data_dir=tmp_path, simulate=True)
+    controller.start()
+    try:
+        sim = controller.simulator
+        assert len(SCENARIOS) > 0
+
+        # Load first scenario and verify step playback
+        scenario = SCENARIOS[0]
+        started = sim.play(scenario.id)
+        assert started
+        assert sim.current_scenario == scenario.id
+        sim.stop_playback()
+        assert not sim.playing
+    finally:
+        controller.shutdown()
