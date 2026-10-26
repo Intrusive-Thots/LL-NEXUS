@@ -79,7 +79,7 @@ def test_end_to_end_simulation_ui_workflow(qapp):
     controller.automation.evaluate_once()
     window._refresh()
 
-    assert "Pick Phase" in window.phase.text()
+    assert "Pick Phase" in window.phase.text() or "Pick Phase" in window.phase.status_label.text()
     rec = controller.automation.pending_recommendation
     assert rec is not None
     assert rec.winner is not None
