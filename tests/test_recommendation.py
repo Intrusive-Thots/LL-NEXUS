@@ -50,3 +50,29 @@ def test_recommendation_role_matching_and_adjustments():
     assert rec_adc.winner and rec_adc.winner.champion.key == "Jinx"
     assert "Recommendation: Jinx" in rec_adc.explanation()[0]
 
+
+def test_recommendation_explanation_formatting_and_role_override():
+    catalog = ChampionCatalog([
+        Champion(1, "Annie", "Annie", "Annie", ("MIDDLE",)),
+        Champion(2, "Thresh", "Thresh", "Thresh", ("SUPPORT",)),
+    ])
+    priorities = PriorityList()
+    priorities.set_priority("Annie", 1)
+    priorities.set_priority("Thresh", 2)
+
+    # Override Annie's role preference to SUPPORT
+    pref = priorities.get("Annie")
+    assert pref is not None
+    pref.role_override = "SUPPORT"
+
+    engine = RecommendationEngine(catalog, priorities)
+    snapshot_support = LeagueSnapshot(role=Role.SUPPORT)
+    rec = engine.recommend(snapshot_support)
+
+    assert rec.winner is not None
+    assert rec.winner.champion.key == "Annie"
+
+    exp = rec.explanation()
+    assert len(exp) > 1
+    assert exp[0] == "Recommendation: Annie"
+    assert exp[1].startswith("1. ")
