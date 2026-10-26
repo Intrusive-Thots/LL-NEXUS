@@ -50,3 +50,29 @@ def test_recommendation_role_matching_and_adjustments():
     assert rec_adc.winner and rec_adc.winner.champion.key == "Jinx"
     assert "Recommendation: Jinx" in rec_adc.explanation()[0]
 
+
+def test_recommendation_role_override_strict_evaluation():
+    # Lux catalog roles include both MIDDLE and SUPPORT
+    catalog = ChampionCatalog([
+        Champion(1, "Lux", "Lux", "Lux", ("MIDDLE", "SUPPORT")),
+    ])
+    priorities = PriorityList()
+    pref = priorities.ensure("Lux")
+    pref.role_override = "SUPPORT"
+
+    engine = RecommendationEngine(catalog, priorities)
+
+    # When assigned role is MIDDLE: override "SUPPORT" should NOT match,
+    # despite catalog role including "MIDDLE".
+    snapshot_mid = LeagueSnapshot(role=Role.MIDDLE)
+    rec_mid = engine.recommend(snapshot_mid)
+    assert rec_mid.winner is not None
+    assert rec_mid.winner.factors["role"] == -40.0
+    assert "Off-role for MID" in rec_mid.winner.reasons
+
+    # When override is changed to "MIDDLE":
+    pref.role_override = "MIDDLE"
+    rec_mid_override = engine.recommend(snapshot_mid)
+    assert rec_mid_override.winner is not None
+    assert rec_mid_override.winner.factors["role"] == 40.0
+    assert "MID role matched" in rec_mid_override.winner.reasons
