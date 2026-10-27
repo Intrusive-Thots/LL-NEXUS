@@ -70,10 +70,7 @@ class ChampionSelectPanel(QWidget):
 
         all_champs = self.controller.catalog.all
         if q:
-            filtered = [
-                c for c in all_champs
-                if q in c.name.lower() or any(q in r.lower() for r in c.roles)
-            ]
+            filtered = [c for c in all_champs if c.matches(q)]
         else:
             filtered = list(all_champs)
 
