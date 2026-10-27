@@ -50,3 +50,31 @@ def test_recommendation_role_matching_and_adjustments():
     assert rec_adc.winner and rec_adc.winner.champion.key == "Jinx"
     assert "Recommendation: Jinx" in rec_adc.explanation()[0]
 
+
+def test_recommendation_role_override_strict():
+    catalog = ChampionCatalog([
+        Champion(1, "Jinx", "Jinx", "Jinx", ("ADC",)),
+        Champion(2, "Ahri", "Ahri", "Ahri", ("MIDDLE",)),
+    ])
+    priorities = PriorityList()
+    priorities.set_priority("Jinx", 1)
+    # Set role override on Jinx to MIDDLE (she is natively ADC)
+    pref = priorities.get("Jinx")
+    assert pref is not None
+    pref.role_override = "MIDDLE"
+
+    engine = RecommendationEngine(catalog, priorities)
+
+    # In ADC role, Jinx has role_override="MIDDLE", so it should NOT match ADC via catalog default roles
+    snapshot_adc = LeagueSnapshot(role=Role.ADC)
+    rec_adc = engine.recommend(snapshot_adc)
+    jinx_score = next(c for c in rec_adc.ranked if c.champion.key == "Jinx")
+    assert jinx_score.factors["role"] == -40.0
+    assert "Off-role for ADC" in jinx_score.reasons
+
+    # In MIDDLE role, Jinx's role_override="MIDDLE" matches
+    snapshot_mid = LeagueSnapshot(role=Role.MIDDLE)
+    rec_mid = engine.recommend(snapshot_mid)
+    jinx_score_mid = next(c for c in rec_mid.ranked if c.champion.key == "Jinx")
+    assert jinx_score_mid.factors["role"] == 40.0
+    assert f"{Role.MIDDLE.display} role matched" in jinx_score_mid.reasons
