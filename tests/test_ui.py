@@ -103,6 +103,27 @@ def test_end_to_end_simulation_ui_workflow(qapp):
     window.close()
 
 
+def test_main_window_automation_checkbox_sync(qapp, tmp_path):
+    controller = AppController(data_dir=tmp_path, simulate=True)
+    controller.start()
+
+    window = MainWindow(controller)
+    window._show("Automation")
+
+    assert hasattr(window, "auto_accept_cb")
+    assert hasattr(window, "auto_pick_cb")
+    assert hasattr(window, "auto_ban_cb")
+
+    controller.update_config(auto_accept_ready=True, auto_pick=True)
+    window._refresh()
+
+    assert window.auto_accept_cb.isChecked()
+    assert window.auto_pick_cb.isChecked()
+
+    controller.shutdown()
+    window.close()
+
+
 def test_profile_page_alias_search_and_priority_add(qapp, tmp_path):
     controller = AppController(data_dir=tmp_path, simulate=True)
     controller.start()
