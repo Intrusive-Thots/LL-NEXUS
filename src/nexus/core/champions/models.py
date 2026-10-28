@@ -52,7 +52,13 @@ class Champion:
 
     def matches(self, needle: str) -> bool:
         n = needle.casefold()
-        return n in self.name.casefold() or n in self.key or n in self.alias.casefold()
+        return (
+            n in self.name.casefold()
+            or n in str(self.id)
+            or n in self.key.casefold()
+            or n in self.alias.casefold()
+            or any(n in r.casefold() for r in self.roles)
+        )
 
 
 def _normalise_alias(name: str) -> str:

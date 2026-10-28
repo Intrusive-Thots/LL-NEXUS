@@ -50,3 +50,12 @@ def test_recommendation_role_matching_and_adjustments():
     assert rec_adc.winner and rec_adc.winner.champion.key == "Jinx"
     assert "Recommendation: Jinx" in rec_adc.explanation()[0]
 
+
+def test_champion_matches_searching():
+    champ = Champion(145, "KaiSa", "Kai'Sa", "KaiSa", ("ADC", "Mage"))
+    assert champ.matches("kaisa")
+    assert champ.matches("145")
+    assert champ.matches("Kai'Sa")
+    assert champ.matches("adc")
+    assert champ.matches("mage")
+    assert not champ.matches("jungle")
