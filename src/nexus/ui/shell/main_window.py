@@ -172,16 +172,19 @@ class MainWindow(QMainWindow):
         a.setChecked(self.controller.settings.automation.auto_accept_ready)
         a.toggled.connect(lambda v: self.controller.update_config(auto_accept_ready=v))
         c.body.addWidget(a)
+        self.auto_accept_cb = a
 
         p = QCheckBox("Auto Pick")
         p.setChecked(self.controller.settings.automation.auto_pick)
         p.toggled.connect(lambda v: self.controller.update_config(auto_pick=v))
         c.body.addWidget(p)
+        self.auto_pick_cb = p
 
         b = QCheckBox("Auto Ban")
         b.setChecked(self.controller.settings.automation.ban_mode is BanMode.AUTO)
         b.toggled.connect(lambda v: self.controller.update_config(ban_mode=BanMode.AUTO if v else BanMode.ASK))
         c.body.addWidget(b)
+        self.auto_ban_cb = b
 
         note = QLabel("Consequential actions require confirmed authoritative state and post-action verification.")
         note.setObjectName("Secondary")
@@ -334,6 +337,21 @@ class MainWindow(QMainWindow):
         self.auto_toggle.blockSignals(True)
         self.auto_toggle.setChecked(self.controller.settings.automation.master_enabled)
         self.auto_toggle.blockSignals(False)
+
+        if hasattr(self, "auto_accept_cb"):
+            self.auto_accept_cb.blockSignals(True)
+            self.auto_accept_cb.setChecked(self.controller.settings.automation.auto_accept_ready)
+            self.auto_accept_cb.blockSignals(False)
+
+        if hasattr(self, "auto_pick_cb"):
+            self.auto_pick_cb.blockSignals(True)
+            self.auto_pick_cb.setChecked(self.controller.settings.automation.auto_pick)
+            self.auto_pick_cb.blockSignals(False)
+
+        if hasattr(self, "auto_ban_cb"):
+            self.auto_ban_cb.blockSignals(True)
+            self.auto_ban_cb.setChecked(self.controller.settings.automation.ban_mode is BanMode.AUTO)
+            self.auto_ban_cb.blockSignals(False)
 
         self.pool.refresh()
         if hasattr(self, "profile_page"):
