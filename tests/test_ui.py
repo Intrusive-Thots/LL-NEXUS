@@ -119,7 +119,35 @@ def test_profile_page_alias_search_and_priority_add(qapp, tmp_path):
 
     # Test adding champion via search
     profile._add_from_search()
-    assert profile.priorities.get("KaiSa") is not None or profile.priorities.get("145") is not None or profile.priorities.has_champion("Kai'Sa") or profile.priorities.has_champion("145") or profile.priorities.get_by_name("Kai'Sa") is not None
+    champ = controller.catalog.by_name("Kai'Sa")
+    pref = profile.priorities.get(champ.key)
+    assert pref is not None
+    assert pref.priority is not None
+    assert pref.priority == len(profile.priorities.ranked())
+
+    controller.shutdown()
+    window.close()
+
+
+def test_automation_checkbox_synchronization(qapp, tmp_path):
+    controller = AppController(data_dir=tmp_path, simulate=True)
+    controller.start()
+
+    window = MainWindow(controller)
+    window._show("Automation")
+
+    assert window.auto_accept_cb.isChecked() == controller.settings.automation.auto_accept_ready
+    assert window.auto_pick_cb.isChecked() == controller.settings.automation.auto_pick
+
+    # Update config via controller
+    controller.update_config(
+        auto_accept_ready=not controller.settings.automation.auto_accept_ready,
+        auto_pick=not controller.settings.automation.auto_pick,
+    )
+    window._refresh()
+
+    assert window.auto_accept_cb.isChecked() == controller.settings.automation.auto_accept_ready
+    assert window.auto_pick_cb.isChecked() == controller.settings.automation.auto_pick
 
     controller.shutdown()
     window.close()
