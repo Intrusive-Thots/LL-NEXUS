@@ -41,6 +41,12 @@ class PriorityList:
         return items
 
     # ------------------------------------------------------------ mutation
+    def normalize(self) -> None:
+        """Ensure priority numbers of ranked preferences are dense 1-based sequential integers."""
+        ranked_items = [p for p in self.all if p.priority is not None]
+        for i, p in enumerate(ranked_items, start=1):
+            p.priority = i
+
     def set_priority(self, key: str, priority: int) -> None:
         """Assign a 1-based rank; other entries shift to keep ranks dense."""
         priority = max(1, priority)
@@ -114,4 +120,6 @@ class PriorityList:
 
     @classmethod
     def from_list(cls, rows: Iterable[dict]) -> "PriorityList":
-        return cls(ChampionPreference.from_dict(r) for r in rows)
+        instance = cls(ChampionPreference.from_dict(r) for r in rows)
+        instance.normalize()
+        return instance
