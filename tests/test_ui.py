@@ -103,6 +103,34 @@ def test_end_to_end_simulation_ui_workflow(qapp):
     window.close()
 
 
+def test_main_window_automation_checkbox_synchronization(qapp, tmp_path):
+    from nexus.core.automation.config import BanMode
+    controller = AppController(data_dir=tmp_path, simulate=True)
+    controller.start()
+
+    window = MainWindow(controller)
+    window._show("Automation")
+
+    assert hasattr(window, "auto_accept_cb")
+    assert hasattr(window, "auto_pick_cb")
+    assert hasattr(window, "auto_ban_cb")
+
+    # Update config from controller
+    controller.update_config(auto_accept_ready=False, auto_pick=False, ban_mode=BanMode.AUTO)
+    window._refresh()
+
+    assert not window.auto_accept_cb.isChecked()
+    assert not window.auto_pick_cb.isChecked()
+    assert window.auto_ban_cb.isChecked()
+
+    # Toggle through UI checkbox and verify config updates
+    window.auto_pick_cb.setChecked(True)
+    assert controller.settings.automation.auto_pick is True
+
+    controller.shutdown()
+    window.close()
+
+
 def test_profile_page_alias_search_and_priority_add(qapp, tmp_path):
     controller = AppController(data_dir=tmp_path, simulate=True)
     controller.start()
