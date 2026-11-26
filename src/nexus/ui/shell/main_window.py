@@ -168,20 +168,20 @@ class MainWindow(QMainWindow):
         self.master.toggled.connect(self.controller.set_automation_enabled)
         c.body.addWidget(self.master)
 
-        a = QCheckBox("Auto Accept Ready Check")
-        a.setChecked(self.controller.settings.automation.auto_accept_ready)
-        a.toggled.connect(lambda v: self.controller.update_config(auto_accept_ready=v))
-        c.body.addWidget(a)
+        self.auto_accept_cb = QCheckBox("Auto Accept Ready Check")
+        self.auto_accept_cb.setChecked(self.controller.settings.automation.auto_accept_ready)
+        self.auto_accept_cb.toggled.connect(lambda v: self.controller.update_config(auto_accept_ready=v))
+        c.body.addWidget(self.auto_accept_cb)
 
-        p = QCheckBox("Auto Pick")
-        p.setChecked(self.controller.settings.automation.auto_pick)
-        p.toggled.connect(lambda v: self.controller.update_config(auto_pick=v))
-        c.body.addWidget(p)
+        self.auto_pick_cb = QCheckBox("Auto Pick")
+        self.auto_pick_cb.setChecked(self.controller.settings.automation.auto_pick)
+        self.auto_pick_cb.toggled.connect(lambda v: self.controller.update_config(auto_pick=v))
+        c.body.addWidget(self.auto_pick_cb)
 
-        b = QCheckBox("Auto Ban")
-        b.setChecked(self.controller.settings.automation.ban_mode is BanMode.AUTO)
-        b.toggled.connect(lambda v: self.controller.update_config(ban_mode=BanMode.AUTO if v else BanMode.ASK))
-        c.body.addWidget(b)
+        self.auto_ban_cb = QCheckBox("Auto Ban")
+        self.auto_ban_cb.setChecked(self.controller.settings.automation.ban_mode is BanMode.AUTO)
+        self.auto_ban_cb.toggled.connect(lambda v: self.controller.update_config(ban_mode=BanMode.AUTO if v else BanMode.ASK))
+        c.body.addWidget(self.auto_ban_cb)
 
         note = QLabel("Consequential actions require confirmed authoritative state and post-action verification.")
         note.setObjectName("Secondary")
@@ -334,6 +334,21 @@ class MainWindow(QMainWindow):
         self.auto_toggle.blockSignals(True)
         self.auto_toggle.setChecked(self.controller.settings.automation.master_enabled)
         self.auto_toggle.blockSignals(False)
+
+        if hasattr(self, "auto_accept_cb"):
+            self.auto_accept_cb.blockSignals(True)
+            self.auto_accept_cb.setChecked(self.controller.settings.automation.auto_accept_ready)
+            self.auto_accept_cb.blockSignals(False)
+
+        if hasattr(self, "auto_pick_cb"):
+            self.auto_pick_cb.blockSignals(True)
+            self.auto_pick_cb.setChecked(self.controller.settings.automation.auto_pick)
+            self.auto_pick_cb.blockSignals(False)
+
+        if hasattr(self, "auto_ban_cb"):
+            self.auto_ban_cb.blockSignals(True)
+            self.auto_ban_cb.setChecked(self.controller.settings.automation.ban_mode is BanMode.AUTO)
+            self.auto_ban_cb.blockSignals(False)
 
         self.pool.refresh()
         if hasattr(self, "profile_page"):

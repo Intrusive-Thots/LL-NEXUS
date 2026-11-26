@@ -94,7 +94,7 @@ class ProfilePage(QWidget):
         champ = self.catalog.by_name(name)
         if champ is None:
             return
-        self.priorities.ensure(champ.key)          # append at end of ranking
+        self.priorities.set_priority(champ.key, len(self.priorities.ranked()) + 1)
         self.list.reload()
         self.search.clear()
         self._on_changed()
