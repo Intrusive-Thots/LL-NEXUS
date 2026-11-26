@@ -132,5 +132,13 @@ def test_manual_select_flexible_lookups(tmp_path):
         # Test lookup by numeric ID string ("103")
         controller.manual_select(str(champ.id))
         assert controller.sim_port.verify_selection(champ.id)
+
+        # Test padded string lookup (" Ahri ")
+        controller.manual_select(" Ahri ")
+        assert controller.sim_port.verify_selection(champ.id)
+
+        # Test padded ID lookup (" 103 ")
+        controller.manual_select(f" {champ.id} ")
+        assert controller.sim_port.verify_selection(champ.id)
     finally:
         controller.shutdown()
