@@ -162,7 +162,21 @@ class LCUEventService:
         total = timer.get("totalTime") or timer.get("adjustedTime") or remaining
         my_team = session.get("myTeam") or []
         their_team = session.get("theirTeam") or []
+        local_cell = session.get("localPlayerCellId")
         banned_ids = _extract_banned_ids(session.get("bans"))
+
+        actions_matrix = session.get("actions")
+        if isinstance(actions_matrix, list):
+            for group in actions_matrix:
+                if isinstance(group, list):
+                    for act in group:
+                        if isinstance(act, dict) and act.get("completed"):
+                            cid = act.get("championId")
+                            if cid and str(cid).isdigit() and int(cid) > 0:
+                                is_ban_act = not act.get("isPick") if act.get("isPick") is not None else (str(act.get("type", "")).upper() == "BAN")
+                                if is_ban_act:
+                                    banned_ids.add(int(cid))
+
         ally_picks = {int(s.get("championId")) for s in my_team
                       if isinstance(s, dict) and s.get("championId") and int(s.get("championId")) > 0}
         enemy_picks = {int(s.get("championId")) for s in their_team
@@ -171,18 +185,43 @@ class LCUEventService:
         locked = False
         action_is_pick = True
         action_champ: Optional[int] = None
+
         for s in my_team:
             if not isinstance(s, dict):
                 continue
-            if s.get("role") and role is Role.NONE:
-                role = Role.from_lcu(str(s["role"]))
-            if s.get("completed"):
+            pos = s.get("selectedPosition") or s.get("role")
+            if pos and role is Role.NONE and (local_cell is None or s.get("cellId") == local_cell):
+                role = Role.from_lcu(str(pos))
+            if s.get("completed") and (local_cell is None or s.get("cellId") == local_cell):
                 locked = True
-            for act in s.get("actions") or []:
-                if isinstance(act, dict) and not act.get("completed"):
-                    action_is_pick = bool(act.get("isPick", True))
-                    cid = act.get("championId")
-                    action_champ = int(cid) if cid else None
+
+        current_act = None
+        if isinstance(actions_matrix, list):
+            for group in actions_matrix:
+                if isinstance(group, list):
+                    for act in group:
+                        if isinstance(act, dict) and not act.get("completed"):
+                            if local_cell is None or act.get("actorCellId") == local_cell:
+                                current_act = act
+                                break
+                    if current_act:
+                        break
+
+        if not current_act:
+            for s in my_team:
+                if isinstance(s, dict) and (local_cell is None or s.get("cellId") == local_cell):
+                    for act in s.get("actions") or []:
+                        if isinstance(act, dict) and not act.get("completed"):
+                            current_act = act
+                            break
+
+        if current_act:
+            is_pick_act = current_act.get("isPick")
+            if is_pick_act is None:
+                is_pick_act = (str(current_act.get("type", "")).upper() != "BAN")
+            action_is_pick = bool(is_pick_act)
+            cid = current_act.get("championId")
+            action_champ = int(cid) if cid and str(cid).isdigit() and int(cid) > 0 else None
         updates = dict(role=role, timer_seconds=float(remaining) if remaining else None,
                        timer_total_seconds=float(total) if total else None,
                        banned_ids=banned_ids, ally_pick_ids=ally_picks,

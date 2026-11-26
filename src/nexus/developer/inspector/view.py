@@ -77,7 +77,7 @@ class EventInspector(QWidget):
             row = self.table.rowCount()
             if row >= self.MAX_ROWS:
                 self.table.removeRow(0)
-                row = self.table.rowCount() - 1
+                row = self.table.rowCount()
                 self._reindex()
             self.table.insertRow(row)
             ts = time.strftime("%H:%M:%S", time.localtime(ev.ts))
