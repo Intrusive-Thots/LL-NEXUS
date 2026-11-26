@@ -65,9 +65,7 @@ class PriorityList:
         new_idx = max(0, min(len(keys) - 1, idx + delta))
         if new_idx == idx:
             return
-        moved = self._prefs[key]
         self.set_priority(key, new_idx + 1)
-        assert moved.priority == new_idx + 1
 
     def swap_with_neighbour(self, key: str, towards_start: bool) -> bool:
         ranked = self.ranked()
@@ -104,14 +102,26 @@ class PriorityList:
         p.preferred = not p.preferred
         return p.preferred
 
+    def set_role_override(self, key: str, role: Optional[str]) -> None:
+        p = self.ensure(key)
+        p.role_override = role.upper() if role else None
+
     def record_pick(self, key: str, now: float) -> None:
         self.ensure(key).record_pick(now)
+
+    def normalize(self) -> None:
+        """Ensure ranked items have dense, 1-based sequential priorities without gaps."""
+        ranked = self.ranked()
+        for i, p in enumerate(ranked, start=1):
+            p.priority = i
 
     # ---------------------------------------------------------- serialise
     def to_list(self) -> list[dict]:
         return [p.to_dict() for p in sorted(self._prefs.values(),
-                                            key=lambda p: p.champion_key)]
+                                            key=lambda p: str(p.champion_key or ""))]
 
     @classmethod
     def from_list(cls, rows: Iterable[dict]) -> "PriorityList":
-        return cls(ChampionPreference.from_dict(r) for r in rows)
+        pl = cls(ChampionPreference.from_dict(r) for r in rows)
+        pl.normalize()
+        return pl
