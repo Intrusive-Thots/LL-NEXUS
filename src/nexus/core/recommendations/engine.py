@@ -140,9 +140,9 @@ class RecommendationEngine:
                 effective_role = (pref.role_override.upper()
                                   if pref and pref.role_override else None)
                 if effective_role is not None:
-                    role_matches = (effective_role == role_str)
+                    role_matches = effective_role == role_str
                 else:
-                    role_matches = any(r.upper() == role_str for r in champ.roles)
+                    role_matches = role_str in champ.upper_roles
 
                 if role_matches:
                     score += W_ROLE_MATCH

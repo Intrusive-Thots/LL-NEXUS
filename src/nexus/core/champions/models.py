@@ -11,7 +11,7 @@ import json
 import re
 import sys
 from dataclasses import dataclass, field
-from functools import lru_cache
+from functools import cached_property, lru_cache
 from pathlib import Path
 from typing import Optional
 
@@ -41,6 +41,10 @@ class Champion:
     alias: str          # e.g. "TheVirtualArcanist"
     roles: tuple[str, ...]
     resource: str = "mana"
+
+    @cached_property
+    def upper_roles(self) -> set[str]:
+        return {r.upper() for r in self.roles}
 
     @property
     def square_icon_url(self) -> str:
@@ -111,7 +115,7 @@ class ChampionCatalog:
 
     def for_role(self, role: str) -> list[Champion]:
         r = role.upper()
-        return [c for c in self._all if r in {x.upper() for x in c.roles}]
+        return [c for c in self._all if r in c.upper_roles]
 
 
 @lru_cache(maxsize=1)
