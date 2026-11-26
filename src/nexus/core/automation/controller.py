@@ -20,7 +20,7 @@ from ..events.bus import EventBus
 from ..recommendations.engine import RecommendationEngine, Recommendation
 from ..sessions.recorder import SessionRecorder
 from ..state.manager import LeagueStateManager
-from ..state.models import LeagueSnapshot, LeagueState, Role, StateConfidence
+from ..state.models import LeagueSnapshot, LeagueState, StateConfidence
 from .config import AutomationConfig, BanMode
 from .kill_switch import GlobalKillSwitch, KillSwitchTripped
 from .port import LCUActionPort
@@ -157,6 +157,13 @@ class AutomationController:
     def evaluate_once(self) -> None:
         """One evaluation pass over authoritative state. Idempotent per window."""
         snap = self._manager.snapshot()
+
+        # Clear action window tracking when exiting champ select or active gameflow phases
+        if snap.state not in (LeagueState.CHAMP_SELECT, LeagueState.BAN_PHASE,
+                              LeagueState.PICK_PHASE, LeagueState.LOCKED,
+                              LeagueState.QUEUE):
+            with self._lock:
+                self._acted_this_action_window.clear()
 
         # Always refresh recommendations during champ select/ban/pick phases so the UI
         # and manual-pick workflow have accurate, up-to-date guidance even when automation is off.

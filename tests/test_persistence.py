@@ -30,6 +30,7 @@ def test_priority_persistence():
 
         store.priorities.set_priority("Ahri", 1)
         store.priorities.set_priority("Lux", 2)
+        store.priorities.set_role_override("Ahri", "TOP")
         store.save_priorities()
 
         store2 = SettingsStore(dir_path)
@@ -37,7 +38,28 @@ def test_priority_persistence():
         ahri_pref = store2.priorities.get("Ahri")
         lux_pref = store2.priorities.get("Lux")
         assert ahri_pref is not None and ahri_pref.priority == 1
+        assert ahri_pref.role_override == "TOP"
         assert lux_pref is not None and lux_pref.priority == 2
+
+
+def test_priority_normalization():
+    sparse_data = [
+        {"champion_key": "Ahri", "priority": 1},
+        {"champion_key": "Lux", "priority": 5},
+        {"champion_key": "Jinx", "priority": 12},
+    ]
+    pl = PriorityList.from_list(sparse_data)
+    assert pl.get("Ahri").priority == 1
+    assert pl.get("Lux").priority == 2
+    assert pl.get("Jinx").priority == 3
+
+    # Direct call to normalize
+    pl_direct = PriorityList.from_list([])
+    pl_direct.ensure("Ahri").priority = 10
+    pl_direct.ensure("Lux").priority = 20
+    pl_direct.normalize()
+    assert pl_direct.get("Ahri").priority == 1
+    assert pl_direct.get("Lux").priority == 2
 
 
 def test_session_sqlite_persistence():
@@ -90,3 +112,37 @@ def test_session_recorder_syncs_queue_and_role():
     assert session.role == "MIDDLE"  # role gets updated if initially set or overridden
 
     recorder.shutdown()
+
+
+def test_priority_list_movements_and_toggles():
+    pl = PriorityList()
+    pl.set_priority("Jinx", 1)
+    pl.set_priority("Ashe", 2)
+    pl.set_priority("Ezreal", 3)
+
+    assert [p.champion_key for p in pl.ranked()] == ["Jinx", "Ashe", "Ezreal"]
+
+    # Move Ezreal up by 1 position
+    pl.move("Ezreal", -1)
+    assert [p.champion_key for p in pl.ranked()] == ["Jinx", "Ezreal", "Ashe"]
+
+    # Swap Ashe with neighbor towards start
+    assert pl.swap_with_neighbour("Ashe", towards_start=True) is True
+    assert [p.champion_key for p in pl.ranked()] == ["Jinx", "Ashe", "Ezreal"]
+
+    # Move unranked champion
+    pl.move("Caitlyn", -1)
+    assert pl.get("Caitlyn").priority == 1
+
+    # Toggles and removal
+    assert pl.toggle_disabled("Jinx") is True
+    assert pl.get("Jinx").disabled is True
+
+    assert pl.toggle_never_pick("Jinx") is True
+    assert pl.get("Jinx").never_pick is True
+
+    assert pl.toggle_preferred("Jinx") is True
+    assert pl.get("Jinx").preferred is True
+
+    pl.remove_priority("Jinx")
+    assert pl.get("Jinx").priority is None

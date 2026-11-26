@@ -50,12 +50,28 @@ class LCUActionPortImpl(LCUActionPort):
             return None
 
     def _my_action(self, session: dict, want_pick: Optional[bool] = None) -> Optional[dict]:
+        cell_id = session.get("localPlayerCellId")
+        actions_matrix = session.get("actions")
+        if isinstance(actions_matrix, list):
+            for turn in actions_matrix:
+                if isinstance(turn, list):
+                    for act in turn:
+                        if isinstance(act, dict) and not act.get("completed"):
+                            if cell_id is not None and act.get("actorCellId") is not None and act.get("actorCellId") != cell_id:
+                                continue
+                            is_pick = (act.get("type") == "pick") if "type" in act else bool(act.get("isPick", True))
+                            if want_pick is None or is_pick == want_pick:
+                                return act
+
         for member in session.get("myTeam") or []:
             if not isinstance(member, dict):
                 continue
+            if cell_id is not None and member.get("cellId") is not None and member.get("cellId") != cell_id:
+                continue
             for act in member.get("actions") or []:
                 if isinstance(act, dict) and not act.get("completed"):
-                    if want_pick is None or bool(act.get("isPick")) == want_pick:
+                    is_pick = (act.get("type") == "pick") if "type" in act else bool(act.get("isPick", True))
+                    if want_pick is None or is_pick == want_pick:
                         return act
         return None
 
@@ -119,34 +135,73 @@ class LCUActionPortImpl(LCUActionPort):
         session = self._session()
         if not session:
             return False
+        cell_id = session.get("localPlayerCellId")
         for member in session.get("myTeam") or []:
             if not isinstance(member, dict):
                 continue
-            for act in member.get("actions") or []:
-                if isinstance(act, dict) and act.get("isPick") \
-                        and act.get("championId") == champion_id:
+            if cell_id is None or member.get("cellId") == cell_id:
+                if member.get("championId") == champion_id:
                     return True
+            for act in member.get("actions") or []:
+                if isinstance(act, dict) and act.get("championId") == champion_id:
+                    if cell_id is None or act.get("actorCellId") == cell_id or member.get("cellId") == cell_id:
+                        return True
+        actions_matrix = session.get("actions")
+        if isinstance(actions_matrix, list):
+            for turn in actions_matrix:
+                if isinstance(turn, list):
+                    for act in turn:
+                        if isinstance(act, dict):
+                            if cell_id is not None and act.get("actorCellId") is not None and act.get("actorCellId") != cell_id:
+                                continue
+                            if act.get("championId") == champion_id or act.get("selectedChampionId") == champion_id:
+                                return True
         return False
 
     def verify_locked(self) -> bool:
         session = self._session()
         if not session:
             return False
+        cell_id = session.get("localPlayerCellId")
         for member in session.get("myTeam") or []:
             if not isinstance(member, dict):
                 continue
-            for act in member.get("actions") or []:
-                if isinstance(act, dict) and act.get("isPick") and act.get("completed"):
-                    return True
+            if cell_id is None or member.get("cellId") == cell_id:
+                for act in member.get("actions") or []:
+                    if isinstance(act, dict) and act.get("completed"):
+                        is_pick = (act.get("type") == "pick") if "type" in act else bool(act.get("isPick", True))
+                        if is_pick:
+                            return True
+        actions_matrix = session.get("actions")
+        if isinstance(actions_matrix, list):
+            for turn in actions_matrix:
+                if isinstance(turn, list):
+                    for act in turn:
+                        if isinstance(act, dict) and act.get("completed"):
+                            if cell_id is not None and act.get("actorCellId") is not None and act.get("actorCellId") != cell_id:
+                                continue
+                            is_pick = (act.get("type") == "pick") if "type" in act else bool(act.get("isPick", True))
+                            if is_pick:
+                                return True
         return False
 
     def verify_ban(self, champion_id: int) -> bool:
         session = self._session()
         if not session:
             return False
-        for b in session.get("bans") or []:
-            if isinstance(b, dict) and b.get("championId") == champion_id:
-                return True
+        from .events import _extract_banned_ids
+        banned = _extract_banned_ids(session.get("bans"))
+        if champion_id in banned:
+            return True
+        actions_matrix = session.get("actions")
+        if isinstance(actions_matrix, list):
+            for turn in actions_matrix:
+                if isinstance(turn, list):
+                    for act in turn:
+                        if isinstance(act, dict) and act.get("completed"):
+                            is_ban = (act.get("type") == "ban") if "type" in act else not bool(act.get("isPick", True))
+                            if is_ban and act.get("championId") == champion_id:
+                                return True
         return False
 
     # ------------------------------------------------------------------- info
