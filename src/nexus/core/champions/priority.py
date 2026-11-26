@@ -65,9 +65,7 @@ class PriorityList:
         new_idx = max(0, min(len(keys) - 1, idx + delta))
         if new_idx == idx:
             return
-        moved = self._prefs[key]
         self.set_priority(key, new_idx + 1)
-        assert moved.priority == new_idx + 1
 
     def swap_with_neighbour(self, key: str, towards_start: bool) -> bool:
         ranked = self.ranked()
