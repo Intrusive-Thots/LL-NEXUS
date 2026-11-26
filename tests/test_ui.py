@@ -6,6 +6,7 @@ pytestmark = pytest.mark.ui
 try:
     from PySide6.QtWidgets import QApplication
     from nexus.app.controller import AppController
+    from nexus.developer.inspector.view import EventInspector
     from nexus.ui.compact.overlay import CompactOverlay
     from nexus.ui.shell.main_window import MainWindow
     HAS_QT = True
@@ -48,6 +49,37 @@ def test_main_window_pages_and_navigation(qapp):
     window.close()
 
 
+def test_event_inspector_filtering_and_max_rows(qapp):
+    controller = AppController(simulate=True)
+    inspector = EventInspector(controller.bus)
+
+    # Publish multiple events with different event kinds
+    controller.bus.publish("lcu.event", source="test", detail="1")
+    controller.bus.publish("automation.decision", source="test", detail="2")
+    controller.bus.publish("automation.action", source="test", detail="3")
+
+    inspector._refresh()
+    assert inspector.table.rowCount() == 3
+
+    # Test filtering
+    inspector.search.setText("automation.")
+    assert inspector.table.rowCount() == 2
+
+    inspector.search.setText("")
+    assert inspector.table.rowCount() == 3
+
+    # Test row truncation when exceeding MAX_ROWS
+    inspector.MAX_ROWS = 5
+    for i in range(10):
+        controller.bus.publish("test.event", source="test", index=i)
+    inspector._refresh()
+    assert inspector.table.rowCount() == 5
+
+    inspector.stop()
+    controller.shutdown()
+    inspector.close()
+
+
 def test_compact_overlay(qapp):
     controller = AppController(simulate=True)
     controller.start()
@@ -58,3 +90,166 @@ def test_compact_overlay(qapp):
 
     controller.shutdown()
     overlay.close()
+
+
+def test_main_window_automation_checkbox_synchronization(qapp, tmp_path):
+    from nexus.core.automation.config import BanMode
+    controller = AppController(data_dir=tmp_path, simulate=True)
+    controller.start()
+
+    window = MainWindow(controller)
+    window._show("Automation")
+
+    assert hasattr(window, "auto_accept_cb")
+    assert hasattr(window, "auto_pick_cb")
+    assert hasattr(window, "auto_ban_cb")
+
+    # Update config from controller
+    controller.update_config(auto_accept_ready=False, auto_pick=False, ban_mode=BanMode.AUTO)
+    window._refresh()
+
+    assert not window.auto_accept_cb.isChecked()
+    assert not window.auto_pick_cb.isChecked()
+    assert window.auto_ban_cb.isChecked()
+
+    # Toggle through UI checkbox and verify config updates
+    window.auto_pick_cb.setChecked(True)
+    assert controller.settings.automation.auto_pick is True
+
+    controller.shutdown()
+    window.close()
+
+
+def test_end_to_end_simulation_ui_workflow(qapp):
+    controller = AppController(simulate=True)
+    controller.start()
+
+    window = MainWindow(controller)
+    window.show()
+
+    # Feed simulation steps to reach Pick Phase with role
+    window._sim_feed("CONNECT")
+    window._sim_feed("LOBBY")
+    window._sim_feed("QUEUE")
+    window._sim_feed("CHAMP_SELECT", queue_type="Ranked Solo/Duo")
+    window._sim_feed("ROLE_DETECTED", role="ADC")
+    window._sim_feed("PICK_PHASE", timer_seconds=30.0, timer_total_seconds=30.0, action_is_pick=True)
+
+    window._refresh()
+    assert "Pick Phase" in window.phase.text()
+
+    # Evaluate automation & refresh UI
+    controller.automation.evaluate_once()
+    window._refresh()
+
+    assert "Locked" in window.phase.text() or "Pick Phase" in window.phase.text()
+    rec = controller.automation.pending_recommendation
+    assert rec is not None
+    assert rec.winner is not None
+    assert window.rec_title.text() == rec.winner.champion.name
+
+    # Exercise manual selection override
+    window._manual_select()
+
+    # Compact overlay toggle and expand
+    window._toggle_compact()
+    assert window.compact.isVisible()
+    window._expand_from_compact()
+    assert not window.compact.isVisible()
+
+    # Emergency stop safety action from UI
+    controller.emergency_stop("UI test stop")
+    assert controller.kill_switch.tripped
+    assert controller.automation.status == "STOPPED"
+
+    controller.shutdown()
+    window.close()
+
+
+def test_priority_list_reordering_and_toggles(qapp, tmp_path):
+    controller = AppController(data_dir=tmp_path, simulate=True)
+    controller.start()
+
+    window = MainWindow(controller)
+    window._show("Profile")
+    profile = window.profile_page
+    plist = profile.list
+
+    # Populate priorities
+    plist.priorities.set_priority("266", 1)  # Aatrox
+    plist.priorities.set_priority("103", 2)  # Ahri
+    plist.reload()
+
+    from PySide6.QtCore import Qt
+    user_role = Qt.ItemDataRole.UserRole
+
+    # Ensure we have ranked items in list
+    assert plist.count() >= 2
+    key_first = plist.item(0).data(user_role)
+    key_second = plist.item(1).data(user_role)
+
+    # Select second item and move up
+    plist.setCurrentRow(1)
+    plist.move_current(-1)
+    assert plist.item(0).data(user_role) == key_second
+
+    # Test toggles: disabled, preferred, never_pick
+    plist.priorities.toggle_disabled(key_second)
+    plist.reload()
+    assert "disabled" in plist.item(0).text()
+
+    plist.priorities.toggle_preferred(key_second)
+    plist.reload()
+    assert "preferred" in plist.item(0).text()
+
+    plist.priorities.toggle_never_pick(key_second)
+    plist.reload()
+    assert "never" in plist.item(0).text()
+
+    controller.shutdown()
+    window.close()
+
+
+def test_profile_page_alias_search_and_priority_add(qapp, tmp_path):
+    controller = AppController(data_dir=tmp_path, simulate=True)
+    controller.start()
+
+    window = MainWindow(controller)
+    window._show("Profile")
+    profile = window.profile_page
+
+    # Test alias search for Kai'Sa ("kaisa")
+    profile.search.setText("kaisa")
+    matches = profile._matches()
+    assert len(matches) > 0
+    assert "Kai'Sa" in matches
+
+    # Test adding champion via search
+    profile._add_from_search()
+    pref = profile.priorities.get("145") or profile.priorities.get("KaiSa")
+    assert pref is not None
+    assert pref.priority is not None
+    assert pref.priority > 0
+    assert any(p.champion_key in ("145", "KaiSa") for p in profile.priorities.ranked())
+
+    controller.shutdown()
+    window.close()
+
+
+def test_settings_page_interactions(qapp, tmp_path):
+    controller = AppController(data_dir=tmp_path, simulate=True)
+    controller.start()
+
+    window = MainWindow(controller)
+    window.show()
+    window._show("Settings")
+    settings_p = window.settings_page
+
+    # Switch categories
+    for cat in ("Appearance", "Notifications", "Hotkeys", "Advanced"):
+        row_idx = settings_p.CATEGORIES.index(cat)
+        settings_p.nav.setCurrentRow(row_idx)
+        assert not settings_p._pages[cat].isHidden()
+
+    controller.shutdown()
+    window.close()
