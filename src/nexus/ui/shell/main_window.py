@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import (
     QCheckBox, QComboBox, QFrame, QHBoxLayout, QLabel, QListWidget,
     QMainWindow, QScrollArea, QStackedWidget, QVBoxLayout, QWidget,
@@ -267,6 +268,11 @@ class MainWindow(QMainWindow):
         self.diag.setWordWrap(True)
         self.diag.setObjectName("Secondary")
         diag_card.body.addWidget(self.diag)
+
+        export_btn = NexusButton("EXPORT DIAGNOSTICS", variant="secondary")
+        export_btn.clicked.connect(self._export_diagnostics)
+        diag_card.body.addWidget(export_btn)
+
         top_row.addWidget(diag_card, 1)
 
         l.addLayout(top_row)
@@ -293,6 +299,21 @@ class MainWindow(QMainWindow):
     def _sim_reset(self):
         if self.controller.simulator:
             self.controller.simulator.reset()
+
+    def _export_diagnostics(self):
+        if hasattr(self.controller, "diagnostics") and self.controller.diagnostics:
+            text = self.controller.diagnostics.export_text()
+            cb = QGuiApplication.clipboard()
+            if cb:
+                cb.setText(text)
+            if hasattr(self.controller, "bus") and self.controller.bus:
+                self.controller.bus.publish(
+                    "notify",
+                    source="developer",
+                    title="Diagnostics Exported",
+                    body="Redacted diagnostics report copied to clipboard.",
+                    level="info",
+                )
 
     def _sim_feed(self, verb: str, **kwargs):
         if self.controller.simulator:
