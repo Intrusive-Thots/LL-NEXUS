@@ -103,9 +103,12 @@ class LeagueStateManager:
             elif old is LeagueState.ERROR:
                 self._last_error = None
             snap = self._snapshot
+        role_val = snap.role.value if hasattr(snap.role, "value") else (snap.role if snap.role is not None else None)
         self._bus.publish("state.changed", source=source,
                           old=old.value, new=target.value,
-                          confidence=confidence.value, reason=reason)
+                          confidence=confidence.value, reason=reason,
+                          queue_type=snap.queue_type,
+                          role=role_val)
         return snap
 
     def update_fields(self, *, confidence: Optional[StateConfidence] = None,
@@ -119,7 +122,10 @@ class LeagueStateManager:
                 self._snapshot.confidence = confidence
             self._snapshot.last_event_ts = time.monotonic()
             snap = self._snapshot
-        self._bus.publish("state.fields_updated", source=source, keys=sorted(updates))
+        role_val = snap.role.value if hasattr(snap.role, "value") else (snap.role if snap.role is not None else None)
+        self._bus.publish("state.fields_updated", source=source, keys=sorted(updates),
+                          queue_type=snap.queue_type,
+                          role=role_val)
         return snap
 
     def set_confidence(self, confidence: StateConfidence, *, source: str = "core") -> None:

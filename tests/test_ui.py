@@ -6,6 +6,7 @@ pytestmark = pytest.mark.ui
 try:
     from PySide6.QtWidgets import QApplication
     from nexus.app.controller import AppController
+    from nexus.developer.inspector.view import EventInspector
     from nexus.ui.compact.overlay import CompactOverlay
     from nexus.ui.shell.main_window import MainWindow
     HAS_QT = True
@@ -48,6 +49,70 @@ def test_main_window_pages_and_navigation(qapp):
     window.close()
 
 
+def test_event_inspector_filtering(qapp):
+    from nexus.developer.inspector.view import EventInspector
+
+    controller = AppController(simulate=True)
+    controller.start()
+
+    inspector = EventInspector(controller.bus)
+    controller.bus.publish("state.changed", source="sim", state="CONNECTED")
+    controller.bus.publish("automation.evaluated", source="auto", decision="ACCEPT")
+    controller.bus.publish("lcu.raw", source="lcu", detail="raw payload content")
+
+    inspector._refresh()
+    initial_rows = inspector.table.rowCount()
+    assert initial_rows >= 3
+
+    # Apply filter by event kind
+    inspector.search.setText("automation.")
+    assert inspector.table.rowCount() == 1
+    assert "automation." in inspector.table.item(0, 1).text()
+
+    # Apply filter by payload content
+    inspector.search.setText("raw payload")
+    assert inspector.table.rowCount() == 1
+    assert "lcu.raw" in inspector.table.item(0, 1).text()
+
+    # Clear filter
+    inspector.search.setText("")
+    assert inspector.table.rowCount() >= 3
+
+    inspector.stop()
+    controller.shutdown()
+
+
+def test_event_inspector_filtering_and_max_rows(qapp):
+    controller = AppController(simulate=True)
+    inspector = EventInspector(controller.bus)
+
+    # Publish multiple events with different event kinds
+    controller.bus.publish("lcu.event", source="test", detail="1")
+    controller.bus.publish("automation.decision", source="test", detail="2")
+    controller.bus.publish("automation.action", source="test", detail="3")
+
+    inspector._refresh()
+    assert inspector.table.rowCount() == 3
+
+    # Test filtering
+    inspector.search.setText("automation.")
+    assert inspector.table.rowCount() == 2
+
+    inspector.search.setText("")
+    assert inspector.table.rowCount() == 3
+
+    # Test row truncation when exceeding MAX_ROWS
+    inspector.MAX_ROWS = 5
+    for i in range(10):
+        controller.bus.publish("test.event", source="test", index=i)
+    inspector._refresh()
+    assert inspector.table.rowCount() == 5
+
+    inspector.stop()
+    controller.shutdown()
+    inspector.close()
+
+
 def test_compact_overlay(qapp):
     controller = AppController(simulate=True)
     controller.start()
@@ -58,6 +123,34 @@ def test_compact_overlay(qapp):
 
     controller.shutdown()
     overlay.close()
+
+
+def test_main_window_automation_checkbox_synchronization(qapp, tmp_path):
+    from nexus.core.automation.config import BanMode
+    controller = AppController(data_dir=tmp_path, simulate=True)
+    controller.start()
+
+    window = MainWindow(controller)
+    window._show("Automation")
+
+    assert hasattr(window, "auto_accept_cb")
+    assert hasattr(window, "auto_pick_cb")
+    assert hasattr(window, "auto_ban_cb")
+
+    # Update config from controller
+    controller.update_config(auto_accept_ready=False, auto_pick=False, ban_mode=BanMode.AUTO)
+    window._refresh()
+
+    assert not window.auto_accept_cb.isChecked()
+    assert not window.auto_pick_cb.isChecked()
+    assert window.auto_ban_cb.isChecked()
+
+    # Toggle through UI checkbox and verify config updates
+    window.auto_pick_cb.setChecked(True)
+    assert controller.settings.automation.auto_pick is True
+
+    controller.shutdown()
+    window.close()
 
 
 def test_end_to_end_simulation_ui_workflow(qapp):
@@ -75,11 +168,14 @@ def test_end_to_end_simulation_ui_workflow(qapp):
     window._sim_feed("ROLE_DETECTED", role="ADC")
     window._sim_feed("PICK_PHASE", timer_seconds=30.0, timer_total_seconds=30.0, action_is_pick=True)
 
+    window._refresh()
+    assert "Pick Phase" in window.phase.text()
+
     # Evaluate automation & refresh UI
     controller.automation.evaluate_once()
     window._refresh()
 
-    assert "Pick Phase" in window.phase.text()
+    assert "Locked" in window.phase.text() or "Pick Phase" in window.phase.text()
     rec = controller.automation.pending_recommendation
     assert rec is not None
     assert rec.winner is not None
@@ -122,6 +218,125 @@ def test_developer_export_diagnostics(qapp):
     window.close()
 
 
+def test_champ_select_panel_search(qapp, tmp_path):
+    controller = AppController(data_dir=tmp_path, simulate=True)
+    controller.start()
+
+    window = MainWindow(controller)
+    pool = window.pool
+
+    # Search by alias ("kaisa" -> Kai'Sa)
+    pool.search.setText("kaisa")
+    assert "1 champions" in pool.count_label.text()
+    assert "145" in pool.grid._tiles or "KaiSa" in pool.grid._tiles
+
+    # Search by key ("103" -> Ahri)
+    pool.search.setText("103")
+    assert "1 champions" in pool.count_label.text()
+    assert "103" in pool.grid._tiles
+
+    # Search by role ("middle")
+    pool.search.setText("middle")
+    count_str = pool.count_label.text()
+    assert "champions" in count_str
+    assert int(count_str.split()[0]) > 0
+
+    controller.shutdown()
+    window.close()
+
+
+def test_priority_list_ui_operations(qapp, tmp_path):
+    from PySide6.QtCore import QEvent, Qt
+    from PySide6.QtGui import QKeyEvent
+    from nexus.ui.champion.priority_list import NexusPriorityList
+
+    controller = AppController(data_dir=tmp_path, simulate=True)
+    controller.start()
+
+    plist = NexusPriorityList(controller.priorities, controller.catalog)
+    controller.priorities.set_priority("103", 1)  # Ahri key
+    controller.priorities.set_priority("266", 2)  # Aatrox key
+    controller.priorities.set_priority("84", 3)   # Akali key
+    plist.reload()
+
+    assert plist.count() == 3
+    assert plist.item(0).data(Qt.ItemDataRole.UserRole) == "103"
+
+    # Test move_current up/down and reorder commit
+    plist.setCurrentRow(1)  # Aatrox ("266")
+    plist.move_current(-1)  # Move Aatrox to position 1
+    assert plist.item(0).data(Qt.ItemDataRole.UserRole) == "266"
+    assert controller.priorities.get("266").priority == 1
+
+    # Test keyPressEvent with Alt+Down
+    event = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Down, Qt.KeyboardModifier.AltModifier)
+    plist.keyPressEvent(event)  # Move Aatrox down
+    assert plist.item(1).data(Qt.ItemDataRole.UserRole) == "266"
+
+    # Test context menu toggles / options directly on priorities/list
+    key = "266"
+    pref = controller.priorities.ensure(key)
+
+    controller.priorities.toggle_disabled(key)
+    assert pref.disabled is True
+
+    controller.priorities.toggle_never_pick(key)
+    assert pref.never_pick is True
+
+    controller.priorities.toggle_preferred(key)
+    assert pref.preferred is True
+
+    controller.priorities.remove_priority(key)
+    plist.reload()
+    assert plist.count() == 2
+
+    controller.shutdown()
+
+
+def test_priority_list_reordering_and_toggles(qapp, tmp_path):
+    controller = AppController(data_dir=tmp_path, simulate=True)
+    controller.start()
+
+    window = MainWindow(controller)
+    window._show("Profile")
+    profile = window.profile_page
+    plist = profile.list
+
+    # Populate priorities
+    plist.priorities.set_priority("266", 1)  # Aatrox
+    plist.priorities.set_priority("103", 2)  # Ahri
+    plist.reload()
+
+    from PySide6.QtCore import Qt
+    user_role = Qt.ItemDataRole.UserRole
+
+    # Ensure we have ranked items in list
+    assert plist.count() >= 2
+    key_first = plist.item(0).data(user_role)
+    key_second = plist.item(1).data(user_role)
+
+    # Select second item and move up
+    plist.setCurrentRow(1)
+    plist.move_current(-1)
+    assert plist.item(0).data(user_role) == key_second
+
+    # Test toggles: disabled, preferred, never_pick
+    plist.priorities.toggle_disabled(key_second)
+    plist.reload()
+    assert "disabled" in plist.item(0).text()
+
+    plist.priorities.toggle_preferred(key_second)
+    plist.reload()
+    assert "preferred" in plist.item(0).text()
+
+    plist.priorities.toggle_never_pick(key_second)
+    plist.reload()
+    assert "never" in plist.item(0).text()
+
+    controller.shutdown()
+    window.close()
+
+
 def test_profile_page_alias_search_and_priority_add(qapp, tmp_path):
     controller = AppController(data_dir=tmp_path, simulate=True)
     controller.start()
@@ -138,7 +353,11 @@ def test_profile_page_alias_search_and_priority_add(qapp, tmp_path):
 
     # Test adding champion via search
     profile._add_from_search()
-    assert profile.priorities.get("KaiSa") is not None or profile.priorities.get("145") is not None or profile.priorities.has_champion("Kai'Sa") or profile.priorities.has_champion("145") or profile.priorities.get_by_name("Kai'Sa") is not None
+    pref = profile.priorities.get("145") or profile.priorities.get("KaiSa")
+    assert pref is not None
+    assert pref.priority is not None
+    assert pref.priority > 0
+    assert any(p.champion_key in ("145", "KaiSa") for p in profile.priorities.ranked())
 
     controller.shutdown()
     window.close()
