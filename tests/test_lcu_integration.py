@@ -205,3 +205,88 @@ def test_lcu_action_port_and_event_service_actions_matrix():
     assert snap.enemy_pick_ids == {238}
     assert snap.action_champion_id == 157
     assert snap.action_is_pick is True
+
+
+def test_lcu_action_port_accept_ready_check():
+    from nexus.services.lcu.adapter import LCUActionPortImpl
+
+    mock_client = MagicMock()
+    port = LCUActionPortImpl(lambda: mock_client)
+
+    assert port.is_connected() is True
+    assert port.accept_ready_check() is True
+    mock_client.post.assert_called_once_with("/lol-ready-check/v1/accept")
+
+
+def test_lcu_action_port_standard_2d_actions_matrix():
+    from nexus.services.lcu.adapter import LCUActionPortImpl
+
+    mock_client = MagicMock()
+    port = LCUActionPortImpl(lambda: mock_client)
+
+    # LCU session with standard 2D actions list and localPlayerCellId
+    session = {
+        "localPlayerCellId": 3,
+        "actions": [
+            [
+                {"id": 10, "actorCellId": 3, "type": "ban", "completed": False, "championId": 0},
+                {"id": 11, "actorCellId": 2, "type": "ban", "completed": False, "championId": 0},
+            ],
+            [
+                {"id": 20, "actorCellId": 3, "type": "pick", "completed": False, "championId": 0},
+            ]
+        ],
+        "bans": {"myTeamBans": [55], "theirTeamBans": []},
+        "myTeam": [{"cellId": 3, "championId": 0}],
+    }
+    mock_client.get.return_value = session
+
+    # Ban champion
+    assert port.ban_champion(55) is True
+    mock_client.post.assert_called_with("/lol-champ-select/v1/session/actions/10", {"championId": 55, "isPick": False})
+
+    # Select champion
+    assert port.select_champion(222) is True
+    mock_client.post.assert_called_with("/lol-champ-select/v1/session/actions/20", {"selectedChampionId": 222})
+
+    # Set selected champion id in session data
+    session["actions"][1][0]["championId"] = 222
+    assert port.verify_selection(222) is True
+    assert port.verify_ban(55) is True
+    assert port.verify_locked() is False
+
+    # Lock in champion (action not yet completed)
+    assert port.lock_in_champion() is True
+    mock_client.post.assert_called_with("/lol-champ-select/v1/session/actions/20/complete")
+
+    # LCU updates session to completed
+    session["actions"][1][0]["completed"] = True
+    assert port.verify_locked() is True
+
+
+def test_lcu_action_port_fallback_member_actions():
+    from nexus.services.lcu.adapter import LCUActionPortImpl
+
+    mock_client = MagicMock()
+    port = LCUActionPortImpl(lambda: mock_client)
+
+    session = {
+        "localPlayerCellId": 1,
+        "myTeam": [
+            {
+                "cellId": 1,
+                "championId": 0,
+                "actions": [{"id": 99, "isPick": True, "completed": False, "championId": 0}],
+            }
+        ]
+    }
+    mock_client.get.return_value = session
+
+    assert port.select_champion(157) is True
+    mock_client.post.assert_called_with("/lol-champ-select/v1/session/actions/99", {"selectedChampionId": 157})
+
+    session["myTeam"][0]["actions"][0]["championId"] = 157
+    assert port.verify_selection(157) is True
+
+    session["myTeam"][0]["actions"][0]["completed"] = True
+    assert port.verify_locked() is True

@@ -55,6 +55,7 @@ class EventInspector(QWidget):
     def _set_filter(self, text: str) -> None:
         self._filter = text.strip()
         self._seen = 0
+        self.table.setRowCount(0)
         self._refresh()
 
     def _refresh(self) -> None:
@@ -69,7 +70,7 @@ class EventInspector(QWidget):
             row = self.table.rowCount()
             if row >= self.MAX_ROWS:
                 self.table.removeRow(0)
-                row = self.table.rowCount() - 1
+                row = self.table.rowCount()
                 self._reindex()
             self.table.insertRow(row)
             ts = time.strftime("%H:%M:%S", time.localtime(ev.ts))
