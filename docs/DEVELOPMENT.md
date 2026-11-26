@@ -27,12 +27,14 @@ NEXUS_SIMULATE=1 league-loop-nexus
 
 ## Packaging for Windows
 
-To build a standalone Windows executable (`dist/LeagueLoopNexus.exe`):
+`scripts/build_windows.py` is the packaging entry point. See `docs/PACKAGING.md`.
+
+`scripts/build_windows_exe.py` and `league_loop_nexus.spec` build a standalone executable that bundles `assets/champions.json`:
 
 ```powershell
 pip install -e ".[dev]"
 python scripts/build_windows_exe.py
 ```
 
-This uses PyInstaller and `league_loop_nexus.spec` to bundle the application and `assets/champions.json`.
-*(Note: Executing PyInstaller on a non-Windows platform generates and validates the spec file; a Windows host or CI runner is required to emit a native `.exe` binary.)*
+Executing PyInstaller on a non-Windows platform generates and validates the spec file. A Windows host or CI runner is required to emit a native `.exe`.
+

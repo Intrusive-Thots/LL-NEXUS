@@ -1,8 +1,10 @@
-# Python compiled files
+# Bytecode & compiled files
 __pycache__/
+*.py[cod]
 *.pyc
 *.pyo
 *.pyd
+*$py.class
 
 # Environments & IDEs
 .venv/
@@ -10,13 +12,20 @@ venv/
 ENV/
 .idea/
 .vscode/
+*.swp
+Thumbs.db
 
 # Local runtime data & caches
 nexus_data/
+*.db
+*.sqlite3
 .pytest_cache/
 .coverage
+htmlcov/
+*.log
 
 # Build & packaging artifacts
 build/
 dist/
 *.egg-info/
+*.spec

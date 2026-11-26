@@ -1,9 +1,219 @@
 from nexus.core.events.bus import EventBus
 from nexus.core.champions.models import default_catalog
 from nexus.core.state.manager import LeagueStateManager
+from nexus.core.state.models import LeagueState, StateConfidence
 from nexus.developer.simulation.port import SimActionPort
-from nexus.developer.simulation.simulator import Simulator
+from nexus.developer.simulation.simulator import Simulator, SCENARIOS
+
+
 def test_simulator_constructs():
-    b=EventBus(); m=LeagueStateManager(b); c=default_catalog(); Simulator(m,b,c)
-def test_sim_port_constructs():
-    SimActionPort(LeagueStateManager(EventBus()),default_catalog())
+    b = EventBus()
+    m = LeagueStateManager(b)
+    c = default_catalog()
+    s = Simulator(m, b, c)
+    assert s.current_scenario is None
+    assert not s.playing
+
+
+def test_sim_port_constructs_and_acts():
+    b = EventBus()
+    m = LeagueStateManager(b)
+    c = default_catalog()
+    avail = {c.all[0].id}
+    port = SimActionPort(m, c, available_ids=avail)
+    assert port.is_connected()
+
+    m.transition(LeagueState.CONNECTED)
+    m.transition(LeagueState.LOBBY)
+    m.transition(LeagueState.QUEUE)
+    assert port.accept_ready_check()
+    assert m.state == LeagueState.CHAMP_SELECT
+    assert port.available_champion_ids() is not None
+
+    champ = c.all[0]
+    m.transition(LeagueState.PICK_PHASE, action_is_pick=True)
+    assert port.select_champion(champ.id)
+    assert port.verify_selection(champ.id)
+    assert port.lock_in_champion()
+    assert port.verify_locked()
+
+
+def test_all_scenarios_feed_cleanly():
+    b = EventBus()
+    m = LeagueStateManager(b)
+    c = default_catalog()
+    sim = Simulator(m, b, c)
+
+    for sc in SCENARIOS:
+        sim.reset()
+        for step in sc.steps:
+            sim.feed(step.verb, **step.params)
+
+
+def test_simulation_reset():
+    b = EventBus()
+    m = LeagueStateManager(b)
+    c = default_catalog()
+    sim = Simulator(m, b, c)
+
+    sim.feed("CONNECT")
+    sim.feed("LOBBY")
+    assert m.state == LeagueState.LOBBY
+
+    sim.reset()
+    assert m.state == LeagueState.DISCONNECTED
+
+
+def test_simulation_app_controller_lifecycle(tmp_path):
+    from nexus.app.controller import AppController
+    controller = AppController(data_dir=tmp_path, simulate=True)
+    controller.start()
+    try:
+        controller.simulator.feed("CONNECT")
+        controller.simulator.feed("LOBBY")
+        controller.simulator.feed("QUEUE")
+        controller.simulator.feed("CHAMP_SELECT", queue_type="Ranked Solo/Duo")
+        controller.simulator.feed("ROLE_DETECTED", role="ADC")
+        controller.simulator.feed("PICK_PHASE", timer_seconds=30.0, timer_total_seconds=30.0, action_is_pick=True)
+        assert controller.manager.state is LeagueState.PICK_PHASE
+        rec = controller.automation.pending_recommendation or controller.automation._refresh_recommendation(controller.manager.snapshot())
+        assert rec is not None
+        assert rec.winner is not None
+        assert rec.winner.champion.name == "Aphelios"
+
+        # Verify diagnostics integration in simulation mode
+        diag = controller.diagnostics.snapshot()
+        assert diag["application"]["name"] == "LeagueLoop Nexus"
+        assert diag["current_state"] == LeagueState.PICK_PHASE.value
+        assert "simulation" in diag
+        assert diag["simulation"]["scenario"] is None
+    finally:
+        controller.shutdown()
+
+
+def test_manual_select_executes_action_and_registers_override(tmp_path):
+    from nexus.app.controller import AppController
+    controller = AppController(data_dir=tmp_path, simulate=True)
+    controller.start()
+    try:
+        controller.simulator.feed("CONNECT")
+        controller.simulator.feed("LOBBY")
+        controller.simulator.feed("QUEUE")
+        controller.simulator.feed("CHAMP_SELECT")
+        controller.simulator.feed("PICK_PHASE")
+
+        champ = controller.catalog.by_name("Aphelios")
+        assert champ is not None
+        controller.manual_select("Aphelios")
+
+        assert controller.sim_port.verify_selection(champ.id)
+        assert f"select:{champ.key}" in controller.sim_port.action_log
+        acted_windows = controller.automation._acted_this_action_window
+        assert len(acted_windows) > 0
+    finally:
+        controller.shutdown()
+
+
+def test_manual_select_flexible_lookups(tmp_path):
+    from nexus.app.controller import AppController
+    controller = AppController(data_dir=tmp_path, simulate=True)
+    controller.start()
+    try:
+        controller.simulator.feed("CONNECT")
+        controller.simulator.feed("LOBBY")
+        controller.simulator.feed("QUEUE")
+        controller.simulator.feed("CHAMP_SELECT")
+        controller.simulator.feed("PICK_PHASE")
+
+        champ = controller.catalog.by_name("Ahri")
+        assert champ is not None
+
+        # Test lookup by key ("103")
+        controller.manual_select(champ.key)
+        assert controller.sim_port.verify_selection(champ.id)
+
+        # Test lookup by numeric ID string ("103")
+        controller.manual_select(str(champ.id))
+        assert controller.sim_port.verify_selection(champ.id)
+
+        # Test padded string lookup (" Ahri ")
+        controller.manual_select(" Ahri ")
+        assert controller.sim_port.verify_selection(champ.id)
+
+        # Test padded ID lookup (" 103 ")
+        controller.manual_select(f" {champ.id} ")
+        assert controller.sim_port.verify_selection(champ.id)
+    finally:
+        controller.shutdown()
+
+
+def test_simulation_scenario_playback_and_state_transitions(tmp_path):
+    from nexus.app.controller import AppController
+    controller = AppController(data_dir=tmp_path, simulate=True)
+    controller.start()
+    try:
+        sim = controller.simulator
+        assert len(SCENARIOS) > 0
+
+        # Load first scenario and verify step playback
+        scenario = SCENARIOS[0]
+        started = sim.play(scenario.id)
+        assert started
+        assert sim.current_scenario == scenario.id
+        sim.stop_playback()
+        assert not sim.playing
+    finally:
+        controller.shutdown()
+
+
+def test_app_controller_simulation_end_to_end(tmp_path):
+    import sys
+    from PySide6.QtWidgets import QApplication
+    from nexus.app.controller import AppController
+    from nexus.ui.shell.main_window import MainWindow
+
+    app = QApplication.instance() or QApplication(sys.argv)
+    controller = AppController(data_dir=tmp_path, simulate=True)
+    controller.start()
+    window = MainWindow(controller=controller)
+    window.show()
+
+    try:
+        # Simulate full Champ Select transition
+        controller.simulator.feed("CONNECT")
+        controller.simulator.feed("LOBBY")
+        controller.simulator.feed("QUEUE")
+        controller.simulator.feed("CHAMP_SELECT")
+        controller.simulator.feed("ROLE_DETECTED", role="ADC")
+        controller.simulator.feed("PICK_PHASE", timer_seconds=30.0, timer_total_seconds=30.0, action_is_pick=True)
+
+        window._refresh()
+        app.processEvents()
+
+        # Force evaluation/refresh so pending_recommendation is updated for window refresh
+        snap = controller.manager.snapshot()
+        rec = controller.automation._refresh_recommendation(snap)
+        window._refresh()
+        app.processEvents()
+
+        assert rec is not None
+        assert rec.winner is not None
+        assert rec.winner.champion.name == "Aphelios"
+        assert window.rec_title.text() == "Aphelios"
+
+        # Execute manual override via UI
+        window._manual_select()
+        app.processEvents()
+
+        champ = controller.catalog.by_name("Aphelios")
+        assert controller.sim_port.verify_selection(champ.id)
+        assert f"select:{champ.key}" in controller.sim_port.action_log
+
+        # Transition to locked state
+        controller.simulator.feed("LOCKED", locked_in=True)
+        window._refresh()
+        app.processEvents()
+        assert controller.manager.snapshot().state == LeagueState.LOCKED
+    finally:
+        window.close()
+        controller.shutdown()
