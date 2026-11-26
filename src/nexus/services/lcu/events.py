@@ -14,7 +14,7 @@ from __future__ import annotations
 import json
 import threading
 import time
-from typing import Optional
+from typing import Any, Optional
 
 from ...core.events.bus import EventBus
 from ...core.state.manager import LeagueStateManager
@@ -40,6 +40,28 @@ GAMEFLOW_MAP: dict[str, LeagueState] = {
     "PostGame": LeagueState.POST_GAME,
     "TerminatedInError": LeagueState.ERROR,
 }
+
+
+def _extract_banned_ids(bans: Any) -> set[int]:
+    banned = set()
+    if isinstance(bans, dict):
+        for val in bans.values():
+            if isinstance(val, (list, dict)):
+                banned.update(_extract_banned_ids(val))
+            elif isinstance(val, (int, str)) and str(val).isdigit():
+                if int(val) > 0:
+                    banned.add(int(val))
+    elif isinstance(bans, list):
+        for item in bans:
+            if isinstance(item, (int, str)) and str(item).isdigit():
+                if int(item) > 0:
+                    banned.add(int(item))
+            elif isinstance(item, dict):
+                cid = item.get("championId")
+                if cid and isinstance(cid, (int, str)) and str(cid).isdigit():
+                    if int(cid) > 0:
+                        banned.add(int(cid))
+    return banned
 
 
 class LCUEventService:
@@ -140,12 +162,11 @@ class LCUEventService:
         total = timer.get("totalTime") or timer.get("adjustedTime") or remaining
         my_team = session.get("myTeam") or []
         their_team = session.get("theirTeam") or []
-        banned_ids = {int(b.get("championId", 0)) for b in (session.get("bans") or [])
-                      if isinstance(b, dict) and b.get("championId")}
+        banned_ids = _extract_banned_ids(session.get("bans"))
         ally_picks = {int(s.get("championId")) for s in my_team
-                      if isinstance(s, dict) and s.get("championId")}
+                      if isinstance(s, dict) and s.get("championId") and int(s.get("championId")) > 0}
         enemy_picks = {int(s.get("championId")) for s in their_team
-                       if isinstance(s, dict) and s.get("championId")}
+                       if isinstance(s, dict) and s.get("championId") and int(s.get("championId")) > 0}
         role = Role.NONE
         locked = False
         action_is_pick = True

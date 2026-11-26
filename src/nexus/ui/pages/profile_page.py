@@ -83,7 +83,7 @@ class ProfilePage(QWidget):
             return []
         ranked = {p.champion_key for p in self.priorities.all}
         out = [c.name for c in self.catalog.all
-               if q in c.name.lower() and c.key not in ranked]
+               if c.matches(q) and c.key not in ranked]
         return out[:8]
 
     def _add_from_search(self) -> None:
@@ -94,7 +94,7 @@ class ProfilePage(QWidget):
         champ = self.catalog.by_name(name)
         if champ is None:
             return
-        self.priorities.ensure(champ.key)          # append at end of ranking
+        self.priorities.set_priority(champ.key, len(self.priorities.ranked()) + 1)
         self.list.reload()
         self.search.clear()
         self._on_changed()
