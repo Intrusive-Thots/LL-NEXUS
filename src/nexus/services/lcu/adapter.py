@@ -17,6 +17,36 @@ from ...core.automation.port import LCUActionPort
 from .client import LCUClient
 
 
+def _cells_conflict(local_cell: Any, actor_cell: Any) -> bool:
+    """True when both cell ids are known and name different players.
+
+    A missing actor cell still matches. That is main's behavior, and it still
+    applies the PR's cellId filter whenever both ids are present.
+    """
+    return local_cell is not None and actor_cell is not None and actor_cell != local_cell
+
+
+def _action_is_pick(act: dict) -> bool:
+    """Whether an action is a pick.
+
+    An explicit ``type`` wins, case-insensitively, so both ``pick`` (main) and
+    ``PICK`` (this PR) count. Otherwise ``isPick`` is used, defaulting to a pick.
+    """
+    type_val = act.get("type")
+    if isinstance(type_val, str) and type_val.strip():
+        return type_val.upper() == "PICK"
+    return bool(act.get("isPick", True))
+
+
+def _action_is_ban(act: dict) -> bool:
+    type_val = act.get("type")
+    if isinstance(type_val, str) and type_val.strip():
+        return type_val.upper() == "BAN"
+    if act.get("isPick") is not None:
+        return not bool(act.get("isPick"))
+    return False
+
+
 class LCUActionPortImpl(LCUActionPort):
     def __init__(self, client_provider) -> None:
         """client_provider: callable returning LCUClient|None (LCUService owns it)."""
@@ -57,20 +87,20 @@ class LCUActionPortImpl(LCUActionPort):
                 if isinstance(turn, list):
                     for act in turn:
                         if isinstance(act, dict) and not act.get("completed"):
-                            if cell_id is not None and act.get("actorCellId") is not None and act.get("actorCellId") != cell_id:
+                            if _cells_conflict(cell_id, act.get("actorCellId")):
                                 continue
-                            is_pick = (act.get("type") == "pick") if "type" in act else bool(act.get("isPick", True))
+                            is_pick = _action_is_pick(act)
                             if want_pick is None or is_pick == want_pick:
                                 return act
 
         for member in session.get("myTeam") or []:
             if not isinstance(member, dict):
                 continue
-            if cell_id is not None and member.get("cellId") is not None and member.get("cellId") != cell_id:
+            if _cells_conflict(cell_id, member.get("cellId")):
                 continue
             for act in member.get("actions") or []:
                 if isinstance(act, dict) and not act.get("completed"):
-                    is_pick = (act.get("type") == "pick") if "type" in act else bool(act.get("isPick", True))
+                    is_pick = _action_is_pick(act)
                     if want_pick is None or is_pick == want_pick:
                         return act
         return None
@@ -136,26 +166,36 @@ class LCUActionPortImpl(LCUActionPort):
         if not session:
             return False
         cell_id = session.get("localPlayerCellId")
-        for member in session.get("myTeam") or []:
-            if not isinstance(member, dict):
-                continue
-            if cell_id is None or member.get("cellId") == cell_id:
-                if member.get("championId") == champion_id:
-                    return True
-            for act in member.get("actions") or []:
-                if isinstance(act, dict) and act.get("championId") == champion_id:
-                    if cell_id is None or act.get("actorCellId") == cell_id or member.get("cellId") == cell_id:
-                        return True
         actions_matrix = session.get("actions")
         if isinstance(actions_matrix, list):
             for turn in actions_matrix:
                 if isinstance(turn, list):
                     for act in turn:
-                        if isinstance(act, dict):
-                            if cell_id is not None and act.get("actorCellId") is not None and act.get("actorCellId") != cell_id:
-                                continue
-                            if act.get("championId") == champion_id or act.get("selectedChampionId") == champion_id:
-                                return True
+                        if not isinstance(act, dict):
+                            continue
+                        if _cells_conflict(cell_id, act.get("actorCellId")):
+                            continue
+                        cid = act.get("championId")
+                        selected = act.get("selectedChampionId")
+                        if cid != champion_id and selected != champion_id:
+                            continue
+                        # selectedChampionId is main's signal. A championId hit
+                        # must be a pick so a completed ban is not a selection.
+                        if selected == champion_id or _action_is_pick(act):
+                            return True
+        for member in session.get("myTeam") or []:
+            if not isinstance(member, dict):
+                continue
+            member_is_local = cell_id is None or member.get("cellId") == cell_id
+            if member_is_local and member.get("championId") == champion_id:
+                return True
+            for act in member.get("actions") or []:
+                if not isinstance(act, dict):
+                    continue
+                if act.get("championId") != champion_id and act.get("selectedChampionId") != champion_id:
+                    continue
+                if cell_id is None or act.get("actorCellId") == cell_id or member.get("cellId") == cell_id:
+                    return True
         return False
 
     def verify_locked(self) -> bool:
@@ -166,22 +206,22 @@ class LCUActionPortImpl(LCUActionPort):
         for member in session.get("myTeam") or []:
             if not isinstance(member, dict):
                 continue
-            if cell_id is None or member.get("cellId") == cell_id:
-                for act in member.get("actions") or []:
-                    if isinstance(act, dict) and act.get("completed"):
-                        is_pick = (act.get("type") == "pick") if "type" in act else bool(act.get("isPick", True))
-                        if is_pick:
-                            return True
+            if _cells_conflict(cell_id, member.get("cellId")):
+                continue
+            if member.get("completed"):
+                return True
+            for act in member.get("actions") or []:
+                if isinstance(act, dict) and act.get("completed") and _action_is_pick(act):
+                    return True
         actions_matrix = session.get("actions")
         if isinstance(actions_matrix, list):
             for turn in actions_matrix:
                 if isinstance(turn, list):
                     for act in turn:
                         if isinstance(act, dict) and act.get("completed"):
-                            if cell_id is not None and act.get("actorCellId") is not None and act.get("actorCellId") != cell_id:
+                            if _cells_conflict(cell_id, act.get("actorCellId")):
                                 continue
-                            is_pick = (act.get("type") == "pick") if "type" in act else bool(act.get("isPick", True))
-                            if is_pick:
+                            if _action_is_pick(act):
                                 return True
         return False
 
@@ -198,9 +238,8 @@ class LCUActionPortImpl(LCUActionPort):
             for turn in actions_matrix:
                 if isinstance(turn, list):
                     for act in turn:
-                        if isinstance(act, dict) and act.get("completed"):
-                            is_ban = (act.get("type") == "ban") if "type" in act else not bool(act.get("isPick", True))
-                            if is_ban and act.get("championId") == champion_id:
+                        if isinstance(act, dict) and act.get("completed") and _action_is_ban(act):
+                            if act.get("championId") == champion_id:
                                 return True
         return False
 
