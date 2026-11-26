@@ -10,12 +10,14 @@ import scripts.build_windows as bw
 
 
 def test_build_windows_script(tmp_path):
-    with patch("subprocess.check_call") as mock_call:
-        bw.build()
+    with patch("subprocess.call", return_value=0) as mock_call:
+        assert bw.build() == 0
         assert mock_call.called
         cmd = mock_call.call_args[0][0]
         assert "PyInstaller" in cmd
         assert "--name=league-loop-nexus" in cmd
+        assert any(part.startswith("--icon=") for part in cmd)
+        assert any("assets" in part and part.startswith("--add-data=") for part in cmd)
 
 
 def test_build_champion_catalog_offline_fallback(tmp_path):
