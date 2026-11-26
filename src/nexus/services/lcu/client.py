@@ -88,10 +88,16 @@ class LCUClient:
     # ------------------------------------------------------------- liveness
     def ping(self) -> bool:
         try:
-            self.get("/")
-            return True
+            with self._lock:
+                resp = self._http.get(f"{self._base}/lol-gameflow/v1/gameflow-phase")
+            return resp.status_code < 500
         except Exception:
-            return False
+            try:
+                with self._lock:
+                    resp = self._http.get(self._base + "/")
+                return resp.status_code < 500
+            except Exception:
+                return False
 
     def close(self) -> None:
         with self._lock:
