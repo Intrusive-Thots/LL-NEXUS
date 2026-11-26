@@ -25,7 +25,10 @@ _SECRET_RE = re.compile(
 
 
 def _is_sensitive_key(k: str) -> bool:
-    if k.lower() in ("champion_key", "champion_id"):
+    lowered = k.lower()
+    # champion_key / champion_id are catalogue identifiers, not secrets.
+    # Suffix form (`foo_champion_key`) is the same exception.
+    if lowered in ("champion_key", "champion_id") or lowered.endswith("_champion_key"):
         return False
     return bool(_SENSITIVE_KEY_PATTERN.search(k))
 
