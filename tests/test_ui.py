@@ -380,3 +380,25 @@ def test_settings_page_interactions(qapp, tmp_path):
 
     controller.shutdown()
     window.close()
+
+
+def test_ui_main_window_lifecycle_and_navigation(qapp, tmp_path):
+    controller = AppController(data_dir=tmp_path, simulate=True)
+    controller.start()
+
+    window = MainWindow(controller)
+    window.show()
+
+    # Test page switches
+    for page in ("Champ Select", "Automation", "Profile", "Settings", "Developer"):
+        window._show(page)
+        assert window.stack.currentWidget() == window.pages[page]
+
+    # Test compact mode toggle
+    window._toggle_compact()
+    assert window.compact.isVisible()
+    window._toggle_compact()
+    assert not window.compact.isVisible()
+
+    window.close()
+    controller.shutdown()

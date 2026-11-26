@@ -17,15 +17,27 @@ LeagueLoop Nexus is an independent League Client companion focused on Champ Sele
 
 ## Run
 
-    python -m venv .venv
-    .\.venv\Scripts\Activate.ps1
-    python -m pip install -e ".[dev]"
-    pytest -q
-    league-loop-nexus
+```bash
+python -m venv .venv
+# On Windows: .\.venv\Scripts\Activate.ps1
+# On Linux/macOS: source .venv/bin/activate
+python -m pip install -e ".[dev]"
+pytest -q
+league-loop-nexus
+```
 
 Simulation without League Client:
 
-    $env:NEXUS_SIMULATE="1"
-    league-loop-nexus
+```bash
+NEXUS_SIMULATE=1 league-loop-nexus
+```
+
+## Packaging
+
+To generate a standalone Windows executable bundle:
+
+```bash
+python scripts/build_windows_exe.py
+```
 
 The original LeagueLoop project is not modified or required by Nexus.
